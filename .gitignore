@@ -147,3 +147,9 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# 약국 데이터(환자 정보 포함) - 절대 커밋하지 않기
+data/
+*.db
+*.db-wal
+*.db-shm
