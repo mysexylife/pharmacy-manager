@@ -6,10 +6,7 @@ const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY,
   username TEXT NOT NULL UNIQUE,
-  name TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('pharmacist', 'staff')),
   pw_hash TEXT NOT NULL,
-  active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -19,51 +16,128 @@ CREATE TABLE IF NOT EXISTS sessions (
   expires_at INTEGER NOT NULL
 );
 
--- 제약회사(vendor)와 병원(hospital)은 같은 원장 구조를 쓴다.
-CREATE TABLE IF NOT EXISTS parties (
-  id INTEGER PRIMARY KEY,
-  type TEXT NOT NULL CHECK (type IN ('vendor', 'hospital')),
-  name TEXT NOT NULL,
-  UNIQUE (type, name)
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
 );
 
--- 잔고 = 누적(billed - paid). 이월은 billed에 넣고, 반품은 음수 billed로 넣는다.
-CREATE TABLE IF NOT EXISTS ledger_entries (
+-- 제약회사 -------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS vendors (
   id INTEGER PRIMARY KEY,
-  party_id INTEGER NOT NULL REFERENCES parties(id) ON DELETE CASCADE,
+  name TEXT NOT NULL UNIQUE,
+  car_numbers TEXT NOT NULL DEFAULT '',
+  sort INTEGER NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 1
+);
+
+-- 금액(amount)은 항상 양수로 두고, 잔고 계산은 kind로 한다.
+--   purchase(입고) +, adjust(조정) +/- (부호 있음), return(반품) -, payment(결제) -
+-- deleted_at이 있으면 휴지통에 있는 것이다.
+CREATE TABLE IF NOT EXISTS vendor_entries (
+  id INTEGER PRIMARY KEY,
+  vendor_id INTEGER NOT NULL REFERENCES vendors(id),
   date TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('purchase', 'payment', 'return', 'adjust')),
   description TEXT NOT NULL DEFAULT '',
+  amount INTEGER NOT NULL,
+  return_id INTEGER,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  deleted_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_ventries ON vendor_entries (vendor_id, date, id);
+
+-- 반품 칸. 처리 완료를 체크하면 vendor_entries에 반품 한 줄이 들어간다.
+CREATE TABLE IF NOT EXISTS vendor_returns (
+  id INTEGER PRIMARY KEY,
+  vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+  date TEXT NOT NULL,
+  item TEXT NOT NULL,
+  amount INTEGER NOT NULL DEFAULT 0,
+  done INTEGER NOT NULL DEFAULT 0,
+  done_date TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  deleted_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS vendor_loans (
+  id INTEGER PRIMARY KEY,
+  vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+  date TEXT NOT NULL,
+  item TEXT NOT NULL,
+  qty INTEGER NOT NULL DEFAULT 1,
+  returned INTEGER NOT NULL DEFAULT 0,
+  returned_date TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  deleted_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS vendor_notes (
+  id INTEGER PRIMARY KEY,
+  vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+  body TEXT NOT NULL,
+  done INTEGER NOT NULL DEFAULT 0,
+  done_date TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  deleted_at TEXT
+);
+
+-- 병원 ----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS hospitals (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  active INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS hospital_products (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  price INTEGER NOT NULL
+);
+
+-- 잔고 = 누적(billed - paid). rx(처방조제약)는 original - discount = billed.
+-- otc(일반의약품)는 입력 당시의 금액을 그대로 저장한다 (단가표를 바꿔도 과거 내역은 그대로).
+CREATE TABLE IF NOT EXISTS hospital_entries (
+  id INTEGER PRIMARY KEY,
+  hospital_id INTEGER NOT NULL REFERENCES hospitals(id),
+  date TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('rx', 'otc', 'payment', 'adjust')),
+  item TEXT NOT NULL DEFAULT '',
   qty INTEGER,
+  original INTEGER,
+  discount INTEGER,
   billed INTEGER NOT NULL DEFAULT 0,
   paid INTEGER NOT NULL DEFAULT 0,
-  created_by INTEGER REFERENCES users(id),
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  deleted_at TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_entries_party_date ON ledger_entries (party_id, date, id);
+CREATE INDEX IF NOT EXISTS idx_hentries ON hospital_entries (hospital_id, date, id);
 
+-- 환자 외상 ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS credits (
   id INTEGER PRIMARY KEY,
   date TEXT NOT NULL,
   name TEXT NOT NULL,
   rrn_front TEXT NOT NULL DEFAULT '',
+  phone TEXT NOT NULL DEFAULT '',
   content TEXT NOT NULL DEFAULT '',
   amount INTEGER NOT NULL,
   memo_done INTEGER NOT NULL DEFAULT 0,
   paid INTEGER NOT NULL DEFAULT 0,
   paid_date TEXT,
   note TEXT NOT NULL DEFAULT '',
-  created_by INTEGER REFERENCES users(id),
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  deleted_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS audit_log (
   id INTEGER PRIMARY KEY,
-  user_id INTEGER,
   action TEXT NOT NULL,
   detail TEXT NOT NULL DEFAULT '',
   at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 `;
+
+export const DEFAULT_SETTINGS = { overdue_days: 30, rx_discount: 5000 };
 
 export function openDb(path) {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
@@ -73,6 +147,28 @@ export function openDb(path) {
   return db;
 }
 
-export function audit(db, userId, action, detail = '') {
-  db.prepare('INSERT INTO audit_log (user_id, action, detail) VALUES (?, ?, ?)').run(userId, action, detail);
+export function tx(db, fn) {
+  db.exec('BEGIN');
+  try {
+    const result = fn();
+    db.exec('COMMIT');
+    return result;
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+export function getSetting(db, key) {
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+  return row ? Number(row.value) : DEFAULT_SETTINGS[key];
+}
+
+export function setSetting(db, key, value) {
+  db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
+    .run(key, String(value));
+}
+
+export function audit(db, action, detail = '') {
+  db.prepare('INSERT INTO audit_log (action, detail) VALUES (?, ?)').run(action, detail);
 }

@@ -1,12 +1,12 @@
 {
   "name": "pharmacy-manager",
-  "version": "0.1.0",
-  "description": "약국 장부(제약회사·병원 외상·환자 외상) 관리 웹앱",
+  "version": "0.2.0",
+  "description": "푸른약국 장부: 제약회사 장부, 병원 외상, 환자 외상",
   "type": "module",
   "private": true,
   "engines": { "node": ">=22.5" },
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning src/server.js",
-    "test": "node --disable-warning=ExperimentalWarning --test test/api.test.js"
+    "test": "node --disable-warning=ExperimentalWarning --test test/api.test.js test/dates.test.js"
   }
 }

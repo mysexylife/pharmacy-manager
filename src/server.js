@@ -57,19 +57,19 @@ async function readJson(req) {
 }
 
 function sendJson(res, status, body, headers = {}) {
-  const payload = JSON.stringify(body);
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
     ...SECURITY_HEADERS,
     ...headers,
   });
-  res.end(payload);
+  res.end(JSON.stringify(body));
 }
 
-export function createApp(db, { secureCookie = false } = {}) {
-  const routes = compile(buildRoutes(db));
-  const attempts = new Map(); // 로그인 시도 제한: 아이디+IP 기준 10분에 8회
+export function createApp(db, { secureCookie = false, trustProxy = false } = {}) {
+  const ctx = {};
+  const routes = compile(buildRoutes(db, ctx));
+  const attempts = new Map(); // 로그인 시도 제한: 같은 곳에서 같은 아이디로 10분에 8회
 
   function rateLimit(key) {
     const now = Date.now();
@@ -79,8 +79,14 @@ export function createApp(db, { secureCookie = false } = {}) {
     attempts.set(key, recent);
   }
 
-  const cookie = (value, maxAge) =>
-    `sid=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAge}${secureCookie ? '; Secure' : ''}`;
+  // 호스팅 서비스 뒤에서는 접속자 주소가 X-Forwarded-For에 들어 있다.
+  const clientIp = (req) => (trustProxy && req.headers['x-forwarded-for']
+    ? String(req.headers['x-forwarded-for']).split(',')[0].trim()
+    : req.socket.remoteAddress);
+
+  const sessionCookie = (s) =>
+    `sid=${s.token}; HttpOnly; SameSite=Strict; Path=/${s.remember ? `; Max-Age=${s.maxAge}` : ''}${secureCookie ? '; Secure' : ''}`;
+  const clearCookie = `sid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secureCookie ? '; Secure' : ''}`;
 
   async function handleApi(req, res, url) {
     const route = routes.find((r) => r.method === req.method && r.regex.test(url.pathname));
@@ -88,10 +94,9 @@ export function createApp(db, { secureCookie = false } = {}) {
     const token = parseCookies(req.headers.cookie).sid;
     const user = userFromToken(db, token);
     if (route.access !== 'public' && !user) throw new HttpError(401, '로그인이 필요합니다');
-    if (route.access === 'pharmacist' && user.role !== 'pharmacist') throw new HttpError(403, '권한이 없습니다');
 
     const body = ['POST', 'PUT', 'PATCH'].includes(req.method) ? await readJson(req) : {};
-    const ip = req.socket.remoteAddress;
+    const ip = clientIp(req);
     const result = route.handler({
       user, token, body,
       params: url.pathname.match(route.regex).groups ?? {},
@@ -99,8 +104,18 @@ export function createApp(db, { secureCookie = false } = {}) {
       rateLimit: (name) => rateLimit(`${ip}|${name}`),
     });
     const headers = {};
-    if (result.session) headers['Set-Cookie'] = cookie(result.session.token, result.session.maxAge);
-    if (result.clearSession) headers['Set-Cookie'] = cookie('', 0);
+    if (result.session) headers['Set-Cookie'] = sessionCookie(result.session);
+    if (result.clearSession) headers['Set-Cookie'] = clearCookie;
+    if (result.raw) {
+      res.writeHead(200, {
+        'Content-Type': result.contentType,
+        'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(result.filename)}`,
+        'Cache-Control': 'no-store',
+        ...SECURITY_HEADERS,
+      });
+      res.end(result.raw);
+      return;
+    }
     sendJson(res, result.status ?? 200, result.body, headers);
   }
 
@@ -121,7 +136,7 @@ export function createApp(db, { secureCookie = false } = {}) {
     }
   }
 
-  return createServer(async (req, res) => {
+  const server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url, 'http://localhost');
       if (url.pathname.startsWith('/api/')) await handleApi(req, res, url);
@@ -132,14 +147,24 @@ export function createApp(db, { secureCookie = false } = {}) {
       sendJson(res, e.status ?? 500, { error: e instanceof HttpError ? e.message : '서버 오류가 발생했습니다' });
     }
   });
+
+  // 휴지통은 30일이 지나면 비운다 (시작할 때 한 번, 그 뒤 하루에 한 번).
+  ctx.purgeTrash();
+  const timer = setInterval(() => ctx.purgeTrash(), 24 * 3600 * 1000);
+  timer.unref();
+  server.on('close', () => clearInterval(timer));
+  return server;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT ?? 3000);
-  // 기본은 이 PC에서만 접속. 약국 Wi-Fi의 폰에서도 쓰려면 HOST=0.0.0.0
+  // 기본은 이 컴퓨터에서만 접속. 호스팅 서비스에서는 HOST=0.0.0.0 으로 연다.
   const host = process.env.HOST ?? '127.0.0.1';
   const db = openDb(process.env.DB_PATH ?? 'data/pharmacy.db');
-  createApp(db, { secureCookie: process.env.SECURE_COOKIE === '1' }).listen(port, host, () => {
+  createApp(db, {
+    secureCookie: process.env.SECURE_COOKIE === '1',
+    trustProxy: process.env.TRUST_PROXY === '1',
+  }).listen(port, host, () => {
     console.log(`푸른약국 장부: http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`);
   });
 }
