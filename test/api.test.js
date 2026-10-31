@@ -86,7 +86,7 @@ test('제약회사 장부: 날짜는 어떤 방식으로 써도 같고, 누락 �
   await ok('POST', `/api/vendors/${vid}/entries`, { kind: 'purchase', date: '26.03.10', description: '입고A', amount: '1,000' }, 201);
   await ok('POST', `/api/vendors/${vid}/entries`, { kind: 'purchase', date: '2026-03-20', description: '입고C', amount: 3000 }, 201);
   // 나중에 빠뜨린 것을 넣는다
-  await ok('POST', `/api/vendors/${vid}/entries`, { kind: 'purchase', date: '3월 15일', description: '입고B', amount: 2000 }, 201);
+  await ok('POST', `/api/vendors/${vid}/entries`, { kind: 'purchase', date: '26년 3월 15일', description: '입고B', amount: 2000 }, 201);
   const l = await ok('GET', `/api/vendors/${vid}/ledger`);
   assert.deepEqual(l.entries.map((e) => e.description), ['입고C', '입고B', '입고A']); // 최근 것이 위
   assert.deepEqual(l.entries.map((e) => e.balance), [6000, 3000, 1000]);

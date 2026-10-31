@@ -13,11 +13,20 @@ export function todayKST(now = new Date()) {
   return new Date(now.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 }
 
+// 연도를 생략한 날짜는 오늘 기준으로 가장 최근에 지나간 그 날짜로 본다.
+// 예: 오늘이 26.10.31이면 10.30은 26.10.30, 11.5는 25.11.05, 2.29는 24.02.29.
+function mostRecent(m, d, today) {
+  const thisYear = Number(today.slice(0, 4));
+  for (let y = thisYear; y > thisYear - 8; y -= 1) {
+    const iso = build(y, m, d);
+    if (iso && iso <= today) return iso;
+  }
+  return null;
+}
+
 // 어떤 방식으로 써도 같은 날짜로 읽는다: 26.10.31, 2026-10-31, 26/10/31, 10.31, 10월 31일, 261031, 1031 ...
-// 연도를 생략하면 올해로 본다.
 export function parseDate(input, today = todayKST()) {
   if (typeof input !== 'string') return null;
-  const thisYear = String(today.slice(0, 4));
   let s = input.trim().replace(/\s+/g, '');
   if (!s) return null;
   s = s.replace(/[년월]/g, '.').replace(/일/g, '').replace(/[/-]/g, '.').replace(/\.+$/, '');
@@ -25,11 +34,11 @@ export function parseDate(input, today = todayKST()) {
   if (/^\d+$/.test(s)) {
     if (s.length === 8) parts = [s.slice(0, 4), s.slice(4, 6), s.slice(6)];
     else if (s.length === 6) parts = [s.slice(0, 2), s.slice(2, 4), s.slice(4)];
-    else if (s.length === 4) parts = [thisYear, s.slice(0, 2), s.slice(2)];
+    else if (s.length === 4) return mostRecent(Number(s.slice(0, 2)), Number(s.slice(2)), today);
     else return null;
   } else if (/^\d+(\.\d+){1,2}$/.test(s)) {
     parts = s.split('.');
-    if (parts.length === 2) parts.unshift(thisYear);
+    if (parts.length === 2) return mostRecent(Number(parts[0]), Number(parts[1]), today);
   } else {
     return null;
   }
