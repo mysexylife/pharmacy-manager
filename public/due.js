@@ -12,7 +12,7 @@ export function dueView() {
 
   const load = guard(err, async () => {
     const d = await api('GET', `/api/due?month=${month}`);
-    body.replaceChildren(...render(d));
+    body.replaceChildren(...render(d).filter(Boolean));
   });
 
   const patch = (path, data, message) => guard(err, async () => {
@@ -44,7 +44,7 @@ export function dueView() {
   function pendingCard(d) {
     const { returns, loans } = d.pending;
     if (!returns.length && !loans.length) {
-      return h('div', { class: 'card' }, h('h2', {}, '처리 중'), h('p', { class: 'muted' }, '처리 중인 반품과 반환 안 된 차용이 없습니다.'));
+      return null; // 처리 중인 것이 없으면 아무것도 보여 주지 않는다
     }
     const rows = [
       ...returns.map((r) => ({ ...r, kind: '반품', detail: r.amount ? `${won(r.amount)}원` : '금액 미입력', check: '처리 완료', path: `/api/returns/${r.id}`, data: { done: true } })),
@@ -72,8 +72,7 @@ export function dueView() {
     },
     h('span', { class: 'dname' }, r.name,
       r.pendingReturns > 0 && badge(`반품 처리 중 ${r.pendingReturns}건`, 'warn'),
-      r.openLoans > 0 && badge(`차용 미반환 ${r.openLoans}건`, 'info'),
-      r.pendingReturns === 0 && badge('반품 없음', 'quiet')),
+      r.openLoans > 0 && badge(`차용 미반환 ${r.openLoans}건`, 'info')),
     h('b', { class: r.due ? '' : 'muted' }, r.due ? `${won(r.due)}원` : '결제 없음'));
     if (!isOpen) return h('div', { class: 'duerow' }, head);
 
