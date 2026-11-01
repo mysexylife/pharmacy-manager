@@ -168,6 +168,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     secureCookie: process.env.SECURE_COOKIE === '1',
     trustProxy: process.env.TRUST_PROXY === '1',
   }).listen(port, host, () => {
-    console.log(`푸른약국 장부: http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`);
+    console.log(`푸른약국: http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`);
   });
 }

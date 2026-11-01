@@ -18,7 +18,7 @@ const TABS = [
 function loginView() {
   const err = errorBox();
   const setup = state.setup;
-  return h('div', { class: 'login' }, h('div', { class: 'brand center' }, logo(), '푸른약국 장부'), h('form', { class: 'card', onsubmit: submit(err, async (fd) => {
+  return h('div', { class: 'login' }, h('div', { class: 'brand center' }, logo(), '푸른약국'), h('form', { class: 'card', onsubmit: submit(err, async (fd) => {
     const body = Object.fromEntries(fd);
     body.remember = fd.has('remember');
     const { user } = await api('POST', setup ? '/api/setup' : '/api/login', body);
@@ -51,11 +51,11 @@ function shell() {
   return [
     h('div', { class: 'shell' },
       h('aside', { class: 'side' },
-        h('div', { class: 'brand' }, logo(), '푸른약국 장부'),
+        h('div', { class: 'brand' }, logo(), '푸른약국'),
         nav,
         h('button', { type: 'button', class: 'navlogout', onclick: logout }, icon('logout'), h('span', { class: 'label' }, '로그아웃'))),
       h('div', { class: 'content' },
-        h('header', { class: 'topbar' }, h('div', { class: 'brand' }, logo(), '푸른약국 장부'),
+        h('header', { class: 'topbar' }, h('div', { class: 'brand' }, logo(), '푸른약국'),
           h('button', { type: 'button', class: 'iconbtn', 'aria-label': '로그아웃', onclick: logout }, icon('logout'))),
         h('main', {}, current[2]()))),
   ];
