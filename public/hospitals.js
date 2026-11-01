@@ -1,6 +1,6 @@
 import {
   h, api, won, signed, errorBox, guard, submit, field, moneyField, dateField, collapsible, confirmDelete,
-  formatDate, todayKST, toast, state,
+  formatDate, todayKST, toast, state, pageHead, rowMenu,
 } from './lib.js';
 import { addMonths } from './dates.js';
 
@@ -130,9 +130,9 @@ export function hospitalsView() {
           h('td', { 'data-label': '제품명' }, p.name),
           h('td', { 'data-label': '병원 단가' }, h('input', { class: 'amt', type: 'text', inputmode: 'numeric', 'aria-label': `${p.name} 단가`, value: String(p.price),
             onchange: act((e) => api('PATCH', `/api/hospital-products/${p.id}`, { price: e.target.value }), '단가를 바꿨어요') })),
-          h('td', {}, h('button', { type: 'button', class: 'btn danger small', onclick: act(async () => {
+          h('td', {}, rowMenu(act(async () => {
             if (confirm(`${p.name}을(를) 단가표에서 뺄까요?`)) await api('DELETE', `/api/hospital-products/${p.id}`);
-          }) }, '삭제')))))),
+          }))))))),
       h('form', { class: 'row', onsubmit: submit(err, async (fd, form) => {
         await api('POST', '/api/hospital-products', Object.fromEntries(fd));
         form.reset();
@@ -151,24 +151,24 @@ export function hospitalsView() {
       h('td', { class: 'num', 'data-label': '외상액' }, e.billed ? (e.kind === 'adjust' ? signed(e.billed) : won(e.billed)) : ''),
       h('td', { class: 'num', 'data-label': '결제액' }, e.paid ? won(e.paid) : ''),
       h('td', { class: `num ${e.balance < 0 ? 'neg' : ''}`, 'data-label': '잔고' }, won(e.balance)),
-      h('td', {}, h('button', { type: 'button', class: 'btn danger small', onclick: act(async () => {
+      h('td', {}, rowMenu(act(async () => {
         if (confirmDelete(`${formatDate(e.date)} ${e.item}`)) await api('DELETE', `/api/hospital-entries/${e.id}`);
-      }) }, '삭제'))));
+      })))));
     if (d.hasEarlier) {
       rows.push(h('tr', { class: 'opening' },
         h('td', { 'data-label': '기준' }, '이전 잔액'), h('td', {}, '(이전 내역 합계)'), h('td'), h('td'), h('td'), h('td'), h('td'),
         h('td', { class: 'num', 'data-label': '잔고' }, won(d.opening)), h('td')));
     }
     return h('div', {},
-      rows.length ? h('table', { class: 'ledger' },
+      rows.length ? h('div', { class: 'tablewrap' }, h('table', { class: 'ledger' },
         h('thead', {}, h('tr', {}, ['날짜', '환자명·품목'].map((t) => h('th', {}, t)),
           ['수량', '원래 금액', '할인액', '외상액', '결제액', '잔고'].map((t) => h('th', { class: 'num' }, t)), h('th'))),
-        h('tbody', {}, rows)) : h('p', { class: 'muted' }, '최근 한 달 내역이 없습니다.'),
+        h('tbody', {}, rows))) : h('p', { class: 'muted' }, '최근 한 달 내역이 없습니다.'),
       h('div', { class: 'row' },
         d.hasEarlier && h('button', { type: 'button', class: 'btn ghost', onclick: () => { back += 1; refresh(); } }, '이전 내역 더 보기 (한 달)'),
         back > 1 && h('button', { type: 'button', class: 'btn ghost', onclick: () => { back = 1; refresh(); } }, '최근 한 달만 보기')));
   }
 
   refresh();
-  return h('div', { class: 'split' }, listBox, h('div', {}, err, detail));
+  return h('div', {}, pageHead('병원 외상'), h('div', { class: 'split' }, listBox, h('div', {}, err, detail)));
 }

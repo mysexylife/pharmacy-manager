@@ -1,5 +1,5 @@
 import {
-  h, api, errorBox, guard, submit, field, moneyField, formatDate, toast,
+  h, api, errorBox, guard, submit, field, moneyField, formatDate, toast, pageHead,
 } from './lib.js';
 
 // 설정: 비밀번호, 기준값, 백업·엑셀 내보내기, 휴지통.
@@ -39,7 +39,7 @@ export function settingsView() {
 
   loadTrash();
   loadSettings();
-  return h('div', {}, err,
+  return h('div', {}, pageHead('설정'), err,
     h('div', { class: 'card' }, h('h2', {}, '기준값'), settingsForm),
     h('div', { class: 'card' }, h('h2', {}, '백업과 엑셀 내보내기'),
       h('p', { class: 'muted' }, '백업 파일에는 모든 장부와 환자 정보가 들어 있습니다. 안전한 곳에 보관하세요.'),

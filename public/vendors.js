@@ -1,6 +1,6 @@
 import {
-  h, api, won, signed, errorBox, guard, submit, field, moneyField, dateField, collapsible, segmented, badge,
-  confirmDelete, formatDate, todayKST, toast, state,
+  h, api, won, signed, errorBox, guard, submit, field, moneyField, dateField, collapsible, tabs, badge,
+  confirmDelete, formatDate, todayKST, toast, state, pageHead, searchBox, rowMenu,
 } from './lib.js';
 import { addMonths } from './dates.js';
 
@@ -11,6 +11,8 @@ export function vendorsView() {
   const detail = h('div');
   let selected = state.vendorId ?? null;
   let months = 6; // 6 = 최근 6개월, 0 = 전체
+  let vq = '';
+  const applyFilter = () => listBox.querySelectorAll('.partylist li').forEach((li) => { li.hidden = vq !== '' && !li.textContent.includes(vq); });
 
   const from = () => (months ? addMonths(todayKST(), -months) : null);
   const refresh = guard(err, async () => { await loadList(); await loadDetail(); });
@@ -41,6 +43,7 @@ export function vendorsView() {
         toast('제약회사를 추가했어요');
         await refresh();
       }) }, field('제약회사 이름', 'name', { required: true, cls: 'wide' }), h('button', { class: 'btn', type: 'submit' }, '추가')), { ghost: true }));
+    applyFilter();
   }
 
   async function loadDetail() {
@@ -71,7 +74,7 @@ export function vendorsView() {
     const head = h('div', { class: 'card' },
       h('div', { class: 'row between' },
         h('h2', { class: 'tight' }, '장부'),
-        segmented('기간', [[6, '최근 6개월'], [0, '전체']], months, (m) => { months = m; refresh(); })),
+        tabs('기간', [[6, '최근 6개월'], [0, '전체']], months, (m) => { months = m; refresh(); })),
       alerts.length > 0 && h('ul', { class: 'alerts' }, alerts));
 
     const entryForm = collapsible('입고·결제 추가', ({ close }) => h('form', { onsubmit: submit(err, async (fd, form) => {
@@ -107,7 +110,7 @@ export function vendorsView() {
         h('label', { class: `check ${n.done ? 'done' : ''}` },
           h('input', { type: 'checkbox', checked: !!n.done, onchange: act((e) => api('PATCH', `/api/notes/${n.id}`, { done: e.target.checked })) }),
           n.body, n.done && n.done_date ? ` (${formatDate(n.done_date)})` : ''),
-        h('button', { type: 'button', class: 'btn danger small', onclick: act(async () => { if (confirmDelete('메모')) await api('DELETE', `/api/notes/${n.id}`); }) }, '삭제')))),
+        rowMenu(act(async () => { if (confirmDelete('메모')) await api('DELETE', `/api/notes/${n.id}`); }))))),
       h('form', { class: 'row', onsubmit: submit(err, async (fd, form) => {
         await api('POST', `/api/vendors/${v.id}/notes`, { body: fd.get('body') });
         form.reset();
@@ -126,9 +129,9 @@ export function vendorsView() {
         h('td', { class: 'num', 'data-label': '반품액' }, e.kind === 'return' ? won(e.amount) : ''),
         h('td', { class: 'num', 'data-label': '결제액' }, e.kind === 'payment' ? won(e.amount) : ''),
         h('td', { class: `num ${e.balance < 0 ? 'neg' : ''}`, 'data-label': '잔고' }, won(e.balance)),
-        h('td', {}, !e.return_id && h('button', { type: 'button', class: 'btn danger small', onclick: act(async () => {
+        h('td', {}, !e.return_id && rowMenu(act(async () => {
           if (confirmDelete(`${formatDate(e.date)} ${e.description || '결제'}`)) await api('DELETE', `/api/entries/${e.id}`);
-        }) }, '삭제')));
+        }))));
     });
     if (d.hasEarlier) {
       rows.push(h('tr', { class: 'opening' },
@@ -136,10 +139,10 @@ export function vendorsView() {
         h('td', { class: 'num', 'data-label': '잔고' }, won(d.opening)), h('td')));
     }
     if (!rows.length) return h('p', { class: 'muted' }, '아직 내역이 없습니다.');
-    return h('table', { class: 'ledger' },
+    return h('div', { class: 'tablewrap' }, h('table', { class: 'ledger' },
       h('thead', {}, h('tr', {}, ['날짜', '내용'].map((t) => h('th', {}, t)),
         ['입고액', '반품액', '결제액', '잔고'].map((t) => h('th', { class: 'num' }, t)), h('th'))),
-      h('tbody', {}, rows));
+      h('tbody', {}, rows)));
   }
 
   function returnsPanel(v, d) {
@@ -163,7 +166,7 @@ export function vendorsView() {
           ? h('b', {}, `${won(r.amount)}원`)
           : h('input', { class: 'amt', type: 'text', inputmode: 'numeric', 'aria-label': `${r.item} 반품액`, value: r.amount || '', placeholder: '반품액',
             onchange: act((e) => api('PATCH', `/api/returns/${r.id}`, { amount: e.target.value })) }),
-        h('button', { type: 'button', class: 'btn danger small', onclick: act(async () => { if (confirmDelete(`반품 ${r.item}`)) await api('DELETE', `/api/returns/${r.id}`); }) }, '삭제')))));
+        rowMenu(act(async () => { if (confirmDelete(`반품 ${r.item}`)) await api('DELETE', `/api/returns/${r.id}`); }))))));
   }
 
   function loansPanel(v, d) {
@@ -184,9 +187,11 @@ export function vendorsView() {
           h('span', {}, '반환 완료', l.returned && l.returned_date ? h('small', {}, ` ${formatDate(l.returned_date)}`) : '')),
         h('span', { class: 'iname' }, `${formatDate(l.date)} ${l.item}`),
         h('b', {}, `${l.qty}개`),
-        h('button', { type: 'button', class: 'btn danger small', onclick: act(async () => { if (confirmDelete(`차용 ${l.item}`)) await api('DELETE', `/api/loans/${l.id}`); }) }, '삭제')))));
+        rowMenu(act(async () => { if (confirmDelete(`차용 ${l.item}`)) await api('DELETE', `/api/loans/${l.id}`); }))))));
   }
 
   refresh();
-  return h('div', { class: 'split' }, listBox, h('div', {}, err, detail));
+  return h('div', {},
+    pageHead('제약회사 장부', searchBox('제약회사 검색', (v) => { vq = v.trim(); applyFilter(); })),
+    h('div', { class: 'split' }, listBox, h('div', {}, err, detail)));
 }

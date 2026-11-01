@@ -1,6 +1,6 @@
 import {
-  h, api, won, errorBox, guard, submit, field, moneyField, dateField, collapsible, segmented, badge,
-  confirmDelete, formatDate, toast, telLink,
+  h, api, won, errorBox, guard, submit, field, moneyField, dateField, foldPair, tabs, badge,
+  confirmDelete, formatDate, toast, telLink, pageHead, searchBox, rowMenu,
 } from './lib.js';
 
 // 환자 외상 장부: 미완불만, 환자별 합계로 묶어 보여 주고 연체는 맨 위에 모은다.
@@ -9,11 +9,15 @@ export function creditsView() {
   const summary = h('div', { class: 'summary' });
   const list = h('div');
   const expanded = new Set();
-  let status = 'open';
+  let status = 'open'; // open(미완불) | overdue(연체) | all(완불 내역 포함)
   let query = '';
+  let counts = { open: 0, overdue: 0 };
 
   const load = guard(err, async () => {
-    const d = await api('GET', `/api/credits?status=${status}&q=${encodeURIComponent(query.trim())}`);
+    const d = await api('GET', `/api/credits?status=${status === 'all' ? 'all' : 'open'}&q=${encodeURIComponent(query.trim())}`);
+    counts = { open: d.openCount, overdue: d.overdueCount };
+    if (status === 'overdue') d.items = d.items.filter((i) => i.overdue);
+    drawTabs();
     summary.replaceChildren(
       h('div', {}, h('span', { class: 'muted' }, '미수금 합계'), h('b', {}, `${won(d.totalOpen)}원`)),
       h('div', {}, h('span', { class: 'muted' }, '미완불'), h('b', {}, `${d.openCount}건`)),
@@ -59,7 +63,8 @@ export function creditsView() {
   function itemsTable(items) {
     return h('table', {},
       h('thead', {}, h('tr', {}, ['날짜', '외상 내용'].map((t) => h('th', {}, t)), h('th', { class: 'num' }, '외상액'),
-        h('th', {}, '메모장 작성'), h('th', {}, '완불'), h('th', {}, '비고'), h('th'))),
+        h('th', {}, '메모장 작성', h('small', { class: 'hint' }, 'PM+20 고객 메모장에 기록')),
+        h('th', {}, '완불', h('small', { class: 'hint' }, '메모장에서 지움')), h('th', {}, '비고'), h('th'))),
       h('tbody', {}, items.map((i) => h('tr', { class: `${i.paid ? 'paid' : ''} ${i.overdue ? 'overdue-row' : ''}` },
         h('td', { 'data-label': '날짜' }, formatDate(i.date), i.overdue && badge(`${i.days}일`, 'danger')),
         h('td', { 'data-label': '외상 내용' }, i.content),
@@ -69,18 +74,18 @@ export function creditsView() {
             onchange: act((e) => api('PATCH', `/api/credits/${i.id}`, { amount: e.target.value }), '외상액을 고쳤어요') })),
         h('td', { 'data-label': '메모장 작성' }, h('label', { class: 'check' },
           h('input', { type: 'checkbox', checked: !!i.memo_done, onchange: act((e) => api('PATCH', `/api/credits/${i.id}`, { memo_done: e.target.checked })) }),
-          h('small', {}, 'PM+20 고객 메모장에 기록'))),
+          h('small', { class: 'rowhint' }, 'PM+20 고객 메모장에 기록'))),
         h('td', { 'data-label': i.paid && i.paid_date ? `완불 (${formatDate(i.paid_date)})` : '완불' }, h('label', { class: 'check' },
           h('input', { type: 'checkbox', checked: !!i.paid, 'aria-label': `${i.name} 완불`, onchange: act((e) => api('PATCH', `/api/credits/${i.id}`, { paid: e.target.checked }), '완불로 기록했어요') }),
-          h('small', {}, '메모장에서 지움'))),
+          h('small', { class: 'rowhint' }, '메모장에서 지움'))),
         h('td', { 'data-label': '비고' }, h('input', { class: 'note', type: 'text', 'aria-label': '비고', value: i.note, placeholder: '비고',
           onchange: act((e) => api('PATCH', `/api/credits/${i.id}`, { note: e.target.value })) })),
-        h('td', {}, h('button', { type: 'button', class: 'btn danger small', onclick: act(async () => {
+        h('td', {}, rowMenu(act(async () => {
           if (confirmDelete(`${i.name} ${won(i.amount)}원 외상`)) await api('DELETE', `/api/credits/${i.id}`);
-        }) }, '삭제'))))));
+        })))))));
   }
 
-  const addForm = collapsible('외상 추가', ({ close }) => h('form', { onsubmit: submit(err, async (fd, form) => {
+  const add = foldPair('외상 추가', ({ close }) => h('form', { onsubmit: submit(err, async (fd, form) => {
     const body = Object.fromEntries(fd);
     body.memo_done = fd.has('memo_done');
     await api('POST', '/api/credits', body);
@@ -98,20 +103,18 @@ export function creditsView() {
     h('label', { class: 'f narrow' }, '메모장 작성', h('span', { class: 'check' }, h('input', { type: 'checkbox', name: 'memo_done' }), h('small', {}, 'PM+20 고객 메모장에 기록'))),
     h('button', { class: 'btn', type: 'submit' }, '추가'))));
 
-  const segBox = h('div');
-  const drawSeg = () => segBox.replaceChildren(segmented('보기', [['open', '미완불만'], ['all', '완불 내역 보기']], status, (s) => {
-    status = s;
-    drawSeg();
-    load();
-  }));
-  drawSeg();
+  const tabBox = h('div');
+  function drawTabs() {
+    tabBox.replaceChildren(tabs('보기', [['open', '미완불', counts.open], ['overdue', '연체', counts.overdue], ['all', '완불 내역 보기']], status, (v) => {
+      status = v;
+      load();
+    }));
+  }
 
   load();
   return h('div', {},
-    h('div', { class: 'card' }, h('h2', {}, '환자 외상 장부'), summary, addForm, err),
-    h('div', { class: 'card' },
-      h('div', { class: 'row between' },
-        h('label', { class: 'f wide' }, '검색 (환자명·주민번호 앞자리)', h('input', { type: 'search', oninput: (e) => { query = e.target.value; load(); } })),
-        segBox),
-      list));
+    pageHead('환자 외상', searchBox('환자명·주민번호 앞자리 검색', (v) => { query = v; load(); }), add.trigger),
+    add.body, err,
+    h('div', { class: 'stats' }, summary),
+    h('div', { class: 'card flush' }, tabBox, list));
 }

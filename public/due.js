@@ -1,5 +1,5 @@
 import {
-  h, api, won, errorBox, guard, submit, dateField, moneyField, field, badge, formatDate, todayKST, toast,
+  h, api, won, errorBox, guard, submit, dateField, moneyField, field, badge, formatDate, todayKST, toast, pageHead,
 } from './lib.js';
 import { addMonths, monthOf } from './dates.js';
 
@@ -23,14 +23,17 @@ export function dueView() {
 
   function render(d) {
     const shift = (n) => { month = monthOf(addMonths(`${month}-01`, n)); load(); };
+    const pending = d.pending.returns.length + d.pending.loans.length;
+    const monthNav = h('div', { class: 'monthnav' },
+      h('button', { type: 'button', 'aria-label': '이전 달', onclick: () => shift(-1) }, '‹'),
+      h('strong', {}, `${month.slice(2).replace('-', '.')}`),
+      h('button', { type: 'button', 'aria-label': '다음 달', onclick: () => shift(1) }, '›'));
     return [
-      h('div', { class: 'card' },
-        h('div', { class: 'row between' },
-          h('button', { type: 'button', class: 'btn ghost small', onclick: () => shift(-1) }, '이전 달'),
-          h('h2', { class: 'tight' }, `${month.slice(2).replace('-', '.')} 결제 대상`),
-          h('button', { type: 'button', class: 'btn ghost small', onclick: () => shift(1) }, '다음 달')),
-        h('p', { class: 'muted' }, `${formatDate(d.cutoff)}(6개월 전 월말) 잔고에서 그 이후 결제액과 반품액을 뺀 금액입니다.`),
-        h('div', { class: 'summary' }, h('div', {}, h('span', { class: 'muted' }, '결제할 금액 합계'), h('b', {}, `${won(d.total)}원`)))),
+      pageHead('결제 대상', monthNav),
+      h('div', { class: 'stats' },
+        h('div', { class: 'stat' }, h('span', {}, '결제할 금액 합계'), h('b', {}, `${won(d.total)}원`)),
+        h('div', { class: 'stat' }, h('span', {}, '처리 중인 반품·차용'), h('b', {}, `${pending}건`)),
+        h('div', { class: 'stat' }, h('span', {}, `기준 (${formatDate(d.cutoff)} 잔고)`), h('b', {}, '6개월 전 월말'))),
       pendingCard(d),
       h('div', { class: 'card' }, h('h2', {}, '제약회사별 결제 금액'), ...d.rows.map((r) => dueRow(r, d)),
         h('div', { class: 'duetotal' }, h('span', {}, '합계'), h('b', {}, `${won(d.total)}원`))),
