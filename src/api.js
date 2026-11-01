@@ -302,7 +302,7 @@ export function buildRoutes(db, ctx = {}) {
       handler: () => {
         const counts = pendingCounts();
         const rows = q(`
-          SELECT v.id, v.name, v.car_numbers, v.active, COALESCE(SUM(e.delta), 0) AS balance
+          SELECT v.id, v.name, v.active, COALESCE(SUM(e.delta), 0) AS balance
           FROM vendors v
           LEFT JOIN (SELECT vendor_id, ${VENDOR_DELTA} AS delta FROM vendor_entries WHERE deleted_at IS NULL) e
             ON e.vendor_id = v.id
@@ -335,7 +335,6 @@ export function buildRoutes(db, ctx = {}) {
         uniqueName(() => {
           if (body.name !== undefined) q('UPDATE vendors SET name = ? WHERE id = ?').run(str(body.name, '이름', { required: true, max: 60 }), v.id);
         });
-        if (body.car_numbers !== undefined) q('UPDATE vendors SET car_numbers = ? WHERE id = ?').run(str(body.car_numbers, '차량번호', { max: 300 }), v.id);
         if (body.active !== undefined) q('UPDATE vendors SET active = ? WHERE id = ?').run(flag(body.active), v.id);
         audit(db, 'vendor.update', `${v.name} ${JSON.stringify(body)}`);
         return { body: { ok: true } };

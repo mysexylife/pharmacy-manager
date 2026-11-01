@@ -212,7 +212,64 @@ a.tel { color: var(--brand); font-weight: 600; }
 #toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: #1d2230; color: #fff;
   padding: 11px 20px; border-radius: 999px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 40; max-width: 90vw; }
 #toast.show { opacity: 1; }
+#toast.error { background: var(--danger); color: #fff; }
 
+/* ---- 제약회사 장부: 위쪽 줄, 컴팩트한 처리 중 패널, 엑셀 같은 내역표 ---- */
+.stickybar { flex-wrap: wrap; }
+.barright { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; justify-content: flex-end; }
+.stickybar .tabstrip { border-bottom: 0; gap: 16px; }
+.stickybar .tabstrip button { padding: 4px 2px; font-size: 14px; }
+.stickybar > strong { font-size: 18px; }
+
+.card.process { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 4px 28px; padding: 10px 16px 12px; }
+.pcol { min-width: 0; }
+.phead { display: flex; align-items: center; gap: 8px; min-height: 34px; }
+.phead strong { font-size: 14px; }
+.hint { color: var(--muted); font-size: 12px; }
+.grow { flex: 1; }
+.process .phead .btn { min-height: 28px; padding: 0 10px; font-size: 13px; background: var(--card); color: var(--brand); border-color: var(--line); box-shadow: none; font-weight: 500; }
+.process .foldcard { border: 0; box-shadow: none; padding: 4px 0 8px; margin: 0; background: none; }
+.process .foldcard .row { margin-top: 0; }
+.process .foldcard input[type=text], .process .foldcard select { min-height: 36px; font-size: 14px; }
+.plist { list-style: none; margin: 0; padding: 0; }
+.plist li { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 14px; min-height: 34px; border-bottom: 1px solid var(--line); flex-wrap: nowrap; justify-content: space-between; }
+.plist li:last-child { border-bottom: 0; }
+.plist .check { flex: 1; min-width: 0; padding: 0; gap: 8px; align-items: flex-start; }
+.plist .check input { margin-top: 2px; }
+.plist .ptext { overflow-wrap: anywhere; }
+.plist li.done .ptext { color: var(--muted); }
+.plist small { color: var(--muted); }
+.plist input.amt { width: 92px; min-height: 28px; padding: 2px 8px; font-size: 13px; }
+.linklike { border: 0; background: none; color: var(--muted); font-size: 12px; cursor: pointer; padding: 4px 0; text-decoration: underline; }
+.kebab { padding: 4px 10px; min-height: 28px; }
+
+.card.ledgercard { padding: 4px 8px 0; }
+.ledger tbody td { padding-top: 9px; padding-bottom: 9px; }
+.ledger.fixed { table-layout: fixed; }
+.ledger.fixed .c-date { width: 132px; } .ledger.fixed .c-in { width: 112px; } .ledger.fixed .c-ret { width: 96px; }
+.ledger.fixed .c-pay { width: 112px; } .ledger.fixed .c-bal { width: 118px; } .ledger.fixed .c-menu { width: 56px; }
+/* 입력 줄: 표 바로 아래, 열 너비가 표와 같다. 표가 길어도 화면 아래쪽에 붙어서 어디를 보고 있든 바로 추가할 수 있다 */
+.addbar { display: grid; grid-template-columns: 132px minmax(0, 1fr) 112px 96px 112px 118px 56px; align-items: center;
+  position: sticky; bottom: 0; z-index: 3; background: var(--card); border-top: 2px solid var(--brand-soft);
+  box-shadow: 0 -10px 14px -12px rgba(20, 30, 60, .3); margin: 0 -8px; padding: 6px 8px; }
+.addbar .cell { padding: 0 8px; min-width: 0; }
+.addbar input[type=text] { min-height: 36px; padding: 4px 8px; font-size: 14px; width: 100%; }
+.addbar .num input { text-align: right; }
+.addbar .datewrap { gap: 2px; }
+.addbar .datewrap input[type=text] { min-width: 0; }
+.addbar .cell.dim, .dim { color: var(--muted); font-size: 12px; text-align: right; }
+.iconbtn.small { padding: 4px; line-height: 0; }
+.addfab { display: none; }
+.vendortoggle { display: none; }
+
+/* 중간 크기 화면(노트북): 사이드바는 아이콘만 보여서 표에 폭을 더 준다 */
+@media (min-width: 901px) and (max-width: 1300px) {
+  .shell { grid-template-columns: 72px 1fr; }
+  .side { padding: 20px 8px; align-items: stretch; }
+  .side .brand { justify-content: center; padding: 4px 0 20px; }
+  .side .brandname, nav.tabs .label, .navlogout .label { display: none; }
+  nav.tabs button, .navlogout { justify-content: center; padding: 12px 0; }
+}
 @media (max-width: 1560px) {
   .ledgergrid { grid-template-columns: 1fr; }
 }
@@ -264,4 +321,20 @@ a.tel { color: var(--brand); font-weight: 600; }
   .ledger td:empty { display: none; }
   .group table tr { background: var(--card); }
   .rowhint { display: inline; }
+  /* 제약회사 장부 입력 줄: 폰에서는 카드 모양이고, 떠 있는 "+ 행 추가" 버튼이 입력 줄로 데려간다 */
+  .addbar { position: static; grid-template-columns: 1fr 1fr; gap: 8px; border: 1.5px solid var(--brand); border-radius: 10px;
+    box-shadow: none; margin: 8px 0 4px; padding: 10px; }
+  .addbar .cell { padding: 0; }
+  .addbar .cell::before { content: attr(data-label); display: block; color: var(--muted); font-size: 11px; margin-bottom: 2px; }
+  .addbar .cell:nth-child(2), .addbar .cell:last-child { grid-column: 1 / -1; }
+  .addbar .cell:last-child::before { content: none; }
+  .addbar .cell:last-child .btn { width: 100%; }
+  .hide-sm { display: none !important; }
+  .addbar input[type=text] { min-height: 42px; font-size: 16px; }
+  .addfab { display: inline-flex; position: fixed; right: 14px; bottom: 78px; z-index: 25; box-shadow: 0 6px 18px rgba(47, 85, 230, .35); }
+  .card.process { grid-template-columns: 1fr; }
+  .vendortoggle { display: flex; width: 100%; justify-content: space-between; }
+  .listbox:not(.open) > :not(.vendortoggle) { display: none; }
+  .listbox { padding: 10px; }
+  .listbox.open .vendortoggle { margin-bottom: 10px; }
 }

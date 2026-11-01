@@ -190,12 +190,12 @@ test('확인 메모는 장부와 결제 대상 화면에서 같은 데이터로 
   assert.equal((await ok('GET', `/api/vendors/${v}/ledger`)).notes[0].done, 1);
 });
 
-test('차량번호 메모와 거래처 비활성화', async () => {
-  const v = (await ok('POST', '/api/vendors', { name: '차량제약' }, 201)).id;
-  await ok('PATCH', `/api/vendors/${v}`, { car_numbers: '12가3456, 78나9012' });
-  assert.equal((await ok('GET', `/api/vendors/${v}/ledger`)).vendor.car_numbers, '12가3456, 78나9012');
+test('거래처를 비활성화하면 결제 대상에서 빠진다', async () => {
+  const v = (await ok('POST', '/api/vendors', { name: '비활성제약' }, 201)).id;
+  assert.equal((await ok('GET', '/api/due')).rows.some((r) => r.id === v), true);
   await ok('PATCH', `/api/vendors/${v}`, { active: false });
   assert.equal((await ok('GET', '/api/due')).rows.some((r) => r.id === v), false);
+  assert.equal('car_numbers' in (await ok('GET', `/api/vendors/${v}/ledger`)).vendor, false); // 차량번호 기능은 없다
 });
 
 // ---------------------------------------------------------------- 병원 외상
