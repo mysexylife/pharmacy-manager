@@ -1,174 +1,203 @@
 import {
-  h, api, won, signed, errorBox, guard, submit, field, moneyField, dateField, collapsible, confirmDelete,
-  formatDate, todayKST, toast, state, pageHead, rowMenu,
+  h, api, won, signed, errorBox, guard, submit, confirmDelete, formatDate, parseDate, todayKST, toast, pageHead, rowMenu, dateInput,
 } from './lib.js';
 import { addMonths } from './dates.js';
+import { sheet, cell } from './sheet.js';
 
-// 병원 외상 장부: 기본은 최근 한 달만 보이고, 이전 내역은 달 단위로 더 불러온다.
+const HOSPITAL_NAME = '한사랑의원'; // 병원은 한 곳뿐이라 목록 없이 바로 보여 준다
+
+const moneyOf = (text) => {
+  const s = String(text ?? '').replace(/[,\s원]/g, '');
+  if (s === '') return 0;
+  const n = Number(s);
+  if (!Number.isSafeInteger(n)) throw new Error('금액은 숫자로 입력하세요');
+  return n;
+};
+
+// 병원 외상: 엑셀처럼 오래된 내역이 위, 최근 내역이 아래. 맨 아래 입력 행에 쓰고, 오른쪽에는 품목 단가표.
 export function hospitalsView() {
   const err = errorBox();
-  const listBox = h('div', { class: 'card' });
-  const detail = h('div');
-  let selected = state.hospitalId ?? null;
-  let back = 1; // 몇 달 전부터 보이는지
-  let settings = { rx_discount: 5000 };
+  const detail = h('div', { class: 'hospgrid' });
+  let back = 1; // 몇 달 전부터 보이는지 (기본 최근 한 달)
+  let lastDate = todayKST();
+  let refocus = false;
+  let refs = {};
 
-  const refresh = guard(err, async () => { await loadList(); await loadDetail(); });
+  const refresh = guard(err, async () => { await load(); });
   const act = (fn, message) => guard(err, async (...a) => {
     await fn(...a);
     if (message) toast(message);
-    await refresh();
+    await load();
   });
 
-  async function loadList() {
-    const hospitals = await api('GET', '/api/hospitals');
-    if (!hospitals.some((x) => x.id === selected)) selected = hospitals[0]?.id ?? null;
-    state.hospitalId = selected;
-    listBox.replaceChildren(
-      h('h2', {}, '병원'),
-      h('p', { class: 'muted' }, `전체 잔고 ${won(hospitals.reduce((s, x) => s + x.balance, 0))}원`),
-      h('ul', { class: 'partylist' }, hospitals.map((x) => h('li', {},
-        h('button', { type: 'button', 'aria-current': String(x.id === selected), onclick: () => { selected = x.id; state.hospitalId = x.id; back = 1; refresh(); } },
-          h('span', { class: 'pname' }, x.name), h('span', { class: `num ${x.balance < 0 ? 'neg' : ''}` }, won(x.balance)))))),
-      collapsible('병원 추가', ({ close }) => h('form', { class: 'row', onsubmit: submit(err, async (fd, form) => {
-        const created = await api('POST', '/api/hospitals', { name: fd.get('name') });
-        selected = created.id;
-        form.reset();
-        close();
-        await refresh();
-      }) }, field('병원 이름', 'name', { required: true, cls: 'wide' }), h('button', { class: 'btn', type: 'submit' }, '추가')), { ghost: true }));
-  }
-
-  async function loadDetail() {
-    if (!selected) {
-      detail.replaceChildren(h('div', { class: 'card' }, h('p', { class: 'muted' }, '병원을 먼저 추가하세요.')));
-      return;
+  async function load() {
+    let hospitals = await api('GET', '/api/hospitals');
+    if (!hospitals.length) {
+      await api('POST', '/api/hospitals', { name: HOSPITAL_NAME });
+      hospitals = await api('GET', '/api/hospitals');
     }
-    const [d, products, s] = await Promise.all([
-      api('GET', `/api/hospitals/${selected}/ledger?from=${addMonths(todayKST(), -back)}`),
+    const hospital = hospitals[0];
+    const [d, products, settings] = await Promise.all([
+      api('GET', `/api/hospitals/${hospital.id}/ledger?from=${addMonths(todayKST(), -back)}`),
       api('GET', '/api/hospital-products'),
       api('GET', '/api/settings'),
     ]);
-    settings = s;
     detail.replaceChildren(
-      h('div', { class: 'stickybar' }, h('strong', {}, d.hospital.name),
+      h('div', { class: 'stickybar hospbar' },
+        h('strong', {}, d.hospital.name),
         h('span', {}, '현재 잔고 ', h('b', { class: d.balance < 0 ? 'neg' : '' }, `${won(d.balance)}원`))),
-      h('div', { class: 'card' }, entryForm(d.hospital.id, products), h('div', { class: 'gap' }, productsPanel(products))),
-      h('div', { class: 'card' }, h('h2', {}, '장부'), ledgerTable(d)));
+      ledgerCard(d, products, settings),
+      pricePanel(products));
+    if (refocus) { refs.item?.focus(); refocus = false; }
   }
 
-  function entryForm(hid, products) {
-    let kind = 'rx';
-    const fields = h('div', { class: 'row' });
-    const preview = h('p', { class: 'preview' });
-    const kindSelect = h('select', { name: 'kind_ui', 'aria-label': '구분', onchange: (e) => { kind = e.target.value; draw(); } },
-      h('option', { value: 'rx' }, '처방조제약'), h('option', { value: 'otc' }, '일반의약품'),
-      h('option', { value: 'payment' }, '결제'), h('option', { value: 'adjust' }, '조정(±)'));
-
-    const num = (el) => Number(String(el?.value ?? '').replace(/[,\s원]/g, '')) || 0;
-    function update(form) {
-      if (kind === 'rx') {
-        const original = num(form.elements.original);
-        const discount = form.elements.discount.value.trim() === '' ? settings.rx_discount : num(form.elements.discount);
-        preview.textContent = original ? `외상액 ${won(Math.max(0, original - discount))}원 (원래 금액 ${won(original)} − 할인 ${won(discount)})` : '';
-      } else if (kind === 'otc') {
-        const p = products.find((x) => String(x.id) === form.elements.product_id.value);
-        const qty = num(form.elements.qty) || 1;
-        preview.textContent = p && !form.elements.billed.value ? `외상액 ${won(p.price * qty)}원 (단가 ${won(p.price)} × ${qty})` : '';
-      } else {
-        preview.textContent = '';
-      }
-    }
-
-    const form = h('form', { onsubmit: submit(err, async (fd, f) => {
-      const body = Object.fromEntries(fd);
-      delete body.kind_ui;
-      body.kind = kind;
-      const r = await api('POST', `/api/hospitals/${hid}/entries`, body);
-      f.reset();
-      kind = 'rx';
-      kindSelect.value = 'rx';
-      draw();
-      toast(r.billed ? `외상 ${won(r.billed)}원을 기록했어요` : '장부에 추가했어요');
-      await refresh();
-    }), oninput: (e) => update(e.currentTarget), onchange: (e) => update(e.currentTarget) });
-
-    function draw() {
-      const common = [h('label', { class: 'f narrow' }, '구분', kindSelect), dateField('날짜')];
-      const submitBtn = h('button', { class: 'btn', type: 'submit' }, '추가');
-      let rest;
-      if (kind === 'rx') {
-        rest = [field('환자명', 'item', { required: true, cls: 'wide' }), moneyField('원래 금액(원)', 'original', { required: true }),
-          moneyField('할인액(원)', 'discount', { placeholder: `기본 ${won(settings.rx_discount)}` })];
-      } else if (kind === 'otc') {
-        rest = [h('label', { class: 'f wide' }, '제품 (단가표)', h('select', { name: 'product_id' },
-          h('option', { value: '' }, '단가표에 없음 (직접 입력)'), products.map((p) => h('option', { value: String(p.id) }, `${p.name} · ${won(p.price)}원`)))),
-        field('품목 (직접 입력할 때)', 'item', { cls: 'wide' }), moneyField('수량', 'qty', { value: '1' }),
-        moneyField('외상액(원)', 'billed', { placeholder: '단가표면 자동' })];
-      } else if (kind === 'payment') {
-        rest = [field('내용', 'item', { cls: 'wide', placeholder: '결제' }), moneyField('결제액(원)', 'paid', { required: true })];
-      } else {
-        rest = [field('내용', 'item', { cls: 'wide', placeholder: '조정' }), moneyField('조정 금액(원, 빼려면 -)', 'billed', { required: true, cls: 'wide' })];
-      }
-      fields.replaceChildren(...common, ...rest, submitBtn);
-      preview.textContent = '';
-    }
-    draw();
-    form.append(fields, preview);
-    return collapsible('외상·결제 추가', ({ close: closeFold }) => {
-      form.addEventListener('submit', () => closeFold());
-      return form;
-    });
-  }
-
-  function productsPanel(products) {
-    return collapsible('병원 단가표', () => h('div', {},
-      h('p', { class: 'muted small' }, '자주 사는 제품의 병원 최종 단가입니다. 바꿔도 이미 입력한 과거 외상은 그대로입니다.'),
-      products.length > 0 && h('table', {},
-        h('thead', {}, h('tr', {}, h('th', {}, '제품명'), h('th', { class: 'num' }, '병원 단가(원)'), h('th'))),
-        h('tbody', {}, products.map((p) => h('tr', {},
-          h('td', { 'data-label': '제품명' }, p.name),
-          h('td', { 'data-label': '병원 단가' }, h('input', { class: 'amt', type: 'text', inputmode: 'numeric', 'aria-label': `${p.name} 단가`, value: String(p.price),
-            onchange: act((e) => api('PATCH', `/api/hospital-products/${p.id}`, { price: e.target.value }), '단가를 바꿨어요') })),
-          h('td', {}, rowMenu(act(async () => {
-            if (confirm(`${p.name}을(를) 단가표에서 뺄까요?`)) await api('DELETE', `/api/hospital-products/${p.id}`);
-          }))))))),
-      h('form', { class: 'row', onsubmit: submit(err, async (fd, form) => {
-        await api('POST', '/api/hospital-products', Object.fromEntries(fd));
-        form.reset();
-        await refresh();
-      }) }, field('제품명', 'name', { required: true, cls: 'wide' }), moneyField('병원 단가(원)', 'price', { required: true }),
-      h('button', { class: 'btn ghost', type: 'submit' }, '단가표에 추가'))), { ghost: true });
-  }
-
-  function ledgerTable(d) {
-    const rows = d.entries.map((e) => h('tr', {},
-      h('td', { 'data-label': '날짜' }, formatDate(e.date)),
-      h('td', { 'data-label': '환자명·품목' }, e.item),
-      h('td', { class: 'num', 'data-label': '수량' }, e.qty ?? ''),
-      h('td', { class: 'num', 'data-label': '원래 금액' }, e.original != null ? won(e.original) : ''),
-      h('td', { class: 'num', 'data-label': '할인액' }, e.discount != null ? won(e.discount) : ''),
-      h('td', { class: 'num', 'data-label': '외상액' }, e.billed ? (e.kind === 'adjust' ? signed(e.billed) : won(e.billed)) : ''),
-      h('td', { class: 'num', 'data-label': '결제액' }, e.paid ? won(e.paid) : ''),
-      h('td', { class: `num ${e.balance < 0 ? 'neg' : ''}`, 'data-label': '잔고' }, won(e.balance)),
-      h('td', {}, rowMenu(act(async () => {
-        if (confirmDelete(`${formatDate(e.date)} ${e.item}`)) await api('DELETE', `/api/hospital-entries/${e.id}`);
-      })))));
+  // ---- 내역표 ---------------------------------------------------------
+  function ledgerCard(d, products, settings) {
+    const rows = [];
     if (d.hasEarlier) {
       rows.push(h('tr', { class: 'opening' },
         h('td', { 'data-label': '기준' }, '이전 잔액'), h('td', {}, '(이전 내역 합계)'), h('td'), h('td'), h('td'), h('td'), h('td'),
         h('td', { class: 'num', 'data-label': '잔고' }, won(d.opening)), h('td')));
     }
-    return h('div', {},
-      rows.length ? h('div', { class: 'tablewrap' }, h('table', { class: 'ledger' },
-        h('thead', {}, h('tr', {}, ['날짜', '환자명·품목'].map((t) => h('th', {}, t)),
-          ['수량', '원래 금액', '할인액', '외상액', '결제액', '잔고'].map((t) => h('th', { class: 'num' }, t)), h('th'))),
-        h('tbody', {}, rows))) : h('p', { class: 'muted' }, '최근 한 달 내역이 없습니다.'),
-      h('div', { class: 'row' },
-        d.hasEarlier && h('button', { type: 'button', class: 'btn ghost', onclick: () => { back += 1; refresh(); } }, '이전 내역 더 보기 (한 달)'),
-        back > 1 && h('button', { type: 'button', class: 'btn ghost', onclick: () => { back = 1; refresh(); } }, '최근 한 달만 보기')));
+    for (const e of d.entries.slice().reverse()) { // 서버는 최근 것부터 주므로 뒤집어 오래된 순서로
+      rows.push(h('tr', {},
+        h('td', { 'data-label': '날짜' }, formatDate(e.date)),
+        h('td', { 'data-label': '환자명·품목' }, e.item),
+        h('td', { class: 'num', 'data-label': '수량' }, e.qty ?? ''),
+        h('td', { class: 'num', 'data-label': '원래 금액' }, e.original != null ? won(e.original) : ''),
+        h('td', { class: 'num', 'data-label': '할인액' }, e.discount != null ? won(e.discount) : ''),
+        h('td', { class: 'num', 'data-label': '외상액' }, e.billed ? (e.kind === 'adjust' ? signed(e.billed) : won(e.billed)) : ''),
+        h('td', { class: 'num', 'data-label': '결제액' }, e.paid ? won(e.paid) : ''),
+        h('td', { class: `num ${e.balance < 0 ? 'neg' : ''}`, 'data-label': '잔고' }, won(e.balance)),
+        h('td', {}, rowMenu(act(async () => {
+          if (confirmDelete(`${formatDate(e.date)} ${e.item}`)) await api('DELETE', `/api/hospital-entries/${e.id}`);
+        })))));
+    }
+    const cells = buildAddRow(d, products, settings);
+    const card = sheet({
+      cols: ['132px', 'minmax(0, 1fr)', '56px', '96px', '92px', '96px', '96px', '104px', '60px'],
+      heads: [['날짜'], ['환자명·품목'], ['수량', true], ['원래 금액', true], ['할인액', true], ['외상액', true], ['결제액', true], ['잔고', true], ['']],
+      rows, addCells: cells, focusEl: refs.item,
+    });
+    // 이전 내역은 위쪽에서 한 달씩 더 불러온다
+    if (d.hasEarlier || back > 1) {
+      card.prepend(h('div', { class: 'earlier' },
+        d.hasEarlier && h('button', { type: 'button', class: 'btn ghost small', onclick: () => { back += 1; refresh(); } }, '이전 내역 더 보기 (한 달)'),
+        back > 1 && h('button', { type: 'button', class: 'btn ghost small', onclick: () => { back = 1; refresh(); } }, '최근 한 달만 보기')));
+    }
+    return card;
+  }
+
+  // 입력 줄: 채운 칸으로 종류를 알아낸다.
+  //   결제액           → 결제
+  //   원래 금액        → 처방조제약 (할인액을 비우면 기본 할인액, 외상액은 자동)
+  //   외상액           → 일반의약품 직접 입력 (음수면 조정)
+  //   품목 이름 + 수량 → 단가표에 있는 일반의약품 (외상액은 단가 × 수량)
+  function buildAddRow(d, products, settings) {
+    const date = dateInput('date', lastDate);
+    const list = h('datalist', { id: 'hospital-products' }, products.map((p) => h('option', { value: p.name })));
+    const item = h('input', { name: 'item', type: 'text', autocomplete: 'off', placeholder: '환자명 · 품목', list: 'hospital-products', 'aria-label': '환자명·품목' });
+    const field = (name, label, placeholder = label) => h('input', { name, type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder, 'aria-label': label });
+    const qty = field('qty', '수량');
+    const original = field('original', '원래 금액');
+    const discount = field('discount', '할인액', `기본 ${won(settings.rx_discount)}`);
+    const billed = field('billed', '외상액');
+    const paid = field('paid', '결제액');
+    const preview = h('span', { class: 'dim' }, '');
+    refs = { item };
+
+    const productOf = () => products.find((p) => p.name === item.value.trim());
+    // 입력한 내용으로 종류와 외상액을 계산한다. 화면의 미리보기와 저장이 같은 계산을 쓴다.
+    const plan = () => {
+      const o = moneyOf(original.value);
+      const b = moneyOf(billed.value);
+      const p = moneyOf(paid.value);
+      const q = moneyOf(qty.value) || 1;
+      const filled = [o, b, p].filter(Boolean).length;
+      if (filled > 1) throw new Error('원래 금액, 외상액, 결제액 중 하나만 입력하세요');
+      if (p) return { kind: 'payment', delta: -p, body: { paid: p } };
+      if (o) {
+        const disc = discount.value.trim() === '' ? settings.rx_discount : moneyOf(discount.value);
+        return { kind: 'rx', delta: Math.max(0, o - disc), body: { original: o, discount: discount.value.trim() === '' ? undefined : disc } };
+      }
+      if (b) return { kind: b < 0 ? 'adjust' : 'otc', delta: b, body: { billed: b, qty: b < 0 ? undefined : q } };
+      const prod = productOf();
+      if (prod) return { kind: 'otc', delta: prod.price * q, body: { product_id: prod.id, qty: q } };
+      throw new Error('원래 금액, 외상액, 결제액 중 하나를 입력하세요 (단가표에 있는 품목은 이름과 수량만)');
+    };
+    const update = () => {
+      try {
+        const x = plan();
+        billed.placeholder = x.kind === 'rx' || (x.kind === 'otc' && x.body.product_id) ? won(x.delta) : '외상액';
+        preview.textContent = `→ ${won(d.balance + x.delta)}`;
+      } catch { billed.placeholder = '외상액'; preview.textContent = ''; }
+    };
+    const send = guard(err, async () => {
+      try {
+        const iso = parseDate(date.input.value);
+        if (!iso) throw new Error('날짜를 다시 확인하세요 (예: 26.10.31)');
+        const x = plan();
+        await api('POST', `/api/hospitals/${d.hospital.id}/entries`, { kind: x.kind, date: iso, item: item.value, ...x.body });
+        lastDate = iso;
+        refocus = true;
+        await load();
+      } catch (ex) {
+        toast(ex.message, 'error');
+        throw ex;
+      }
+    });
+    const onKey = (e) => { if (e.key === 'Enter') { e.preventDefault(); send(); } };
+    for (const el of [date.input, item, qty, original, discount, billed, paid]) {
+      el.addEventListener('keydown', onKey);
+      el.addEventListener('input', update);
+    }
+    return [
+      cell('날짜', date.node),
+      cell('환자명·품목', item, list),
+      cell('수량', qty),
+      cell('원래 금액', original),
+      cell('할인액', discount),
+      cell('외상액', billed),
+      cell('결제액', paid),
+      cell('예상 잔고', preview),
+      h('div', { class: 'cell' }, h('button', { type: 'button', class: 'btn small', onclick: send }, '추가')),
+    ];
+  }
+
+  // ---- 오른쪽: 품목 단가표 ----------------------------------------------------
+  function pricePanel(products) {
+    const name = h('input', { name: 'name', type: 'text', autocomplete: 'off', placeholder: '제품명', 'aria-label': '제품명' });
+    const price = h('input', { name: 'price', type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder: '병원 단가', 'aria-label': '병원 단가' });
+    const send = guard(err, async () => {
+      try {
+        await api('POST', '/api/hospital-products', { name: name.value, price: price.value });
+        refocus = false;
+        await load();
+        document.querySelector('.pricecard input[name=name]')?.focus();
+      } catch (ex) {
+        toast(ex.message, 'error');
+        throw ex;
+      }
+    });
+    for (const el of [name, price]) el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); send(); } });
+    const rows = products.map((p) => h('tr', {},
+      h('td', { 'data-label': '제품명' }, p.name),
+      h('td', { class: 'num', 'data-label': '병원 단가' }, h('input', { class: 'amt', type: 'text', inputmode: 'numeric', 'aria-label': `${p.name} 단가`, value: String(p.price),
+        onchange: act((e) => api('PATCH', `/api/hospital-products/${p.id}`, { price: e.target.value }), '단가를 바꿨어요') })),
+      h('td', {}, rowMenu(act(async () => {
+        if (confirm(`${p.name}을(를) 단가표에서 뺄까요?`)) await api('DELETE', `/api/hospital-products/${p.id}`);
+      })))));
+    const card = sheet({
+      cols: ['minmax(0, 1fr)', '108px', '60px'],
+      heads: [['제품명'], ['병원 단가(원)', true], ['']],
+      rows, addCells: [cell('제품명', name), cell('병원 단가', price), h('div', { class: 'cell' }, h('button', { type: 'button', class: 'btn small', onclick: send }, '추가'))],
+      focusEl: name, className: 'pricecard',
+    });
+    card.prepend(h('div', { class: 'cardtitle' }, h('strong', {}, '품목 단가표'),
+      h('small', { class: 'hint' }, '바꿔도 이미 입력한 과거 외상은 그대로')));
+    return card;
   }
 
   refresh();
-  return h('div', {}, pageHead('병원 외상'), h('div', { class: 'split' }, listBox, h('div', {}, err, detail)));
+  return h('div', {}, pageHead('병원 외상'), err, detail);
 }

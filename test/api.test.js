@@ -234,37 +234,48 @@ test('처방조제약 할인액 기본값은 설정에서 바꾼다', async () =
 });
 
 // ---------------------------------------------------------------- 환자 외상
-test('환자 외상: 환자별 합계, 연체(30일) 표시와 맨 위 정렬, 완불 체크', async () => {
+test('환자 외상: 한 줄이 한 건이고 오래된 순서, 연체(30일) 표시, 완불은 따로 관리', async () => {
   const today = todayKST();
   const mk = (body) => ok('POST', '/api/credits', { rrn_front: '900101', ...body }, 201);
+  await mk({ date: addDays(today, -2), name: '홍길동', amount: 4700 });
   await mk({ date: addDays(today, -40), name: '연체환자', rrn_front: '800202', phone: '010-1111-2222', amount: 10000, content: '처방약' });
   await mk({ date: addDays(today, -5), name: '홍길동', amount: 5300, content: '처방약 + 쿨링시트' });
-  await mk({ date: addDays(today, -2), name: '홍길동', amount: 4700 });
   await mk({ date: addDays(today, -1), name: '홍길동', rrn_front: '911111', amount: 1000 }); // 동명이인
 
   const r = await ok('GET', '/api/credits');
+  assert.deepEqual(r.items.map((i) => i.date), [...r.items.map((i) => i.date)].sort()); // 오래된 순서
   assert.equal(r.items[0].name, '연체환자');
   assert.equal(r.items[0].overdue, true);
+  assert.equal(r.items.length, 4);                      // 환자별로 묶지 않는다
+  assert.equal('groups' in r, false);
   assert.equal(r.overdueCount, 1);
   assert.equal(r.totalOpen, 21000);
-  const hong = r.groups.find((g) => g.name === '홍길동' && g.rrn_front === '900101');
-  assert.equal(hong.total, 10000);
-  assert.equal(hong.count, 2);
-  assert.equal(r.groups.find((g) => g.rrn_front === '911111').total, 1000); // 동명이인은 따로
-  assert.equal(r.groups[0].name, '연체환자'); // 연체 환자가 맨 위
-  assert.equal(r.groups[0].phone, '010-1111-2222');
+  assert.equal(r.openCount, 4);
 
+  // 환자 이름으로 전체 목록(완불 포함)을 본다. 동명이인은 주민번호 앞자리로 가린다.
+  const hong = (await ok('GET', '/api/credits?status=all&q=홍길동')).items;
+  assert.equal(hong.length, 3);
+  assert.equal(hong.filter((i) => i.rrn_front === '900101').length, 2);
+
+  // 완불 처리하면 미완불에서 빠지고 완불 내역으로 간다
   const target = r.items.find((i) => i.name === '연체환자');
   await ok('PATCH', `/api/credits/${target.id}`, { memo_done: true });
   await ok('PATCH', `/api/credits/${target.id}`, { paid: true });
   const after = await ok('GET', '/api/credits');
-  assert.equal(after.items.some((i) => i.id === target.id), false);       // 기본은 미완불만
-  const all = await ok('GET', '/api/credits?status=all');
-  const done = all.items.find((i) => i.id === target.id);
-  assert.equal(done.paid, 1);
-  assert.equal(done.paid_date, today);
-  assert.equal(done.memo_done, 1);
+  assert.equal(after.items.some((i) => i.id === target.id), false);
+  assert.equal(after.openCount, 3);
+  assert.equal(after.overdueCount, 0);
+  const paid = await ok('GET', '/api/credits?status=paid');
+  assert.deepEqual(paid.items.map((i) => i.id), [target.id]);
+  assert.equal(paid.items[0].paid_date, today);
+  assert.equal(paid.items[0].memo_done, 1);
+  assert.equal((await ok('GET', '/api/credits?status=all')).items.length, 4);
   assert.equal((await ok('GET', '/api/credits?q=길동')).items.every((i) => i.name === '홍길동'), true);
+  assert.equal((await ok('GET', '/api/credits?status=paid&q=길동')).items.length, 0);
+
+  // 체크를 풀면 다시 미완불로 돌아온다
+  await ok('PATCH', `/api/credits/${target.id}`, { paid: false });
+  assert.equal((await ok('GET', '/api/credits')).openCount, 4);
 });
 
 test('환자 외상 입력 검사: 주민번호 6자리, 연락처 형식, 일부 납부는 금액 수정', async () => {

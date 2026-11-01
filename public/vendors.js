@@ -3,6 +3,7 @@ import {
   confirmDelete, formatDate, parseDate, todayKST, toast, state, pageHead, searchBox, rowMenu, dateInput,
 } from './lib.js';
 import { addMonths } from './dates.js';
+import { sheet, cell } from './sheet.js';
 
 const moneyOf = (text) => {
   const s = String(text ?? '').replace(/[,\s원]/g, '');
@@ -178,19 +179,12 @@ export function vendorsView() {
           if (confirmDelete(`${formatDate(e.date)} ${e.description || '결제'}`)) await api('DELETE', `/api/entries/${e.id}`);
         })))));
     }
-    const addRow = buildAddRow(v, d);
-    const fab = h('button', { type: 'button', class: 'btn addfab', onclick: () => {
-      addRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      refs.description?.focus({ preventScroll: true });
-    } }, '+ 행 추가');
-    return h('div', { class: 'card ledgercard' },
-      h('table', { class: 'ledger fixed' },
-        h('colgroup', {}, ['date', 'desc', 'in', 'ret', 'pay', 'bal', 'menu'].map((c) => h('col', { class: `c-${c}` }))),
-        h('thead', {}, h('tr', {}, ['날짜', '내용'].map((t) => h('th', {}, t)),
-          ['입고액', '반품액', '결제액', '잔고'].map((t) => h('th', { class: 'num' }, t)), h('th'))),
-        h('tbody', {}, rows)),
-      addRow,
-      fab);
+    const cells = buildAddRow(v, d);
+    return sheet({
+      cols: ['132px', 'minmax(0, 1fr)', '112px', '96px', '112px', '118px', '60px'],
+      heads: [['날짜'], ['내용'], ['입고액', true], ['반품액', true], ['결제액', true], ['잔고', true], ['']],
+      rows, addCells: cells, focusEl: refs.description,
+    });
   }
 
   // 엑셀의 마지막 빈 줄처럼 쓴다. 입고액이나 결제액 중 하나만 적고 Enter. 음수 입고액은 조정으로 기록된다.
@@ -231,15 +225,15 @@ export function vendorsView() {
     for (const el of [date.input, description, billed, paid]) el.addEventListener('keydown', onKey);
     for (const el of [billed, paid]) el.addEventListener('input', update);
 
-    const cell = (label, ...kids) => h('div', { class: 'cell', 'data-label': label }, ...kids);
-    return h('div', { class: 'addbar' },
+    return [
       cell('날짜', date.node),
       cell('내용', description),
       cell('입고액', billed),
       h('div', { class: 'cell dim hide-sm' }, '반품은 위에서'),
       cell('결제액', paid),
       cell('예상 잔고', preview),
-      h('div', { class: 'cell' }, h('button', { type: 'button', class: 'btn small', onclick: send }, '추가')));
+      h('div', { class: 'cell' }, h('button', { type: 'button', class: 'btn small', onclick: send }, '추가')),
+    ];
   }
 
   refresh();

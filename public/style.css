@@ -44,7 +44,7 @@ nav.tabs button[aria-current="page"] { background: var(--brand-soft); color: var
 .icon { display: inline-flex; flex: none; }
 .content { min-width: 0; }
 .topbar { display: none; }
-main { max-width: 1240px; margin: 0 auto; padding: 28px 36px 56px; }
+main { max-width: 1480px; margin: 0 auto; padding: 28px 36px 56px; }
 
 .pagehead { display: flex; justify-content: space-between; align-items: center; gap: 12px 16px; flex-wrap: wrap; margin-bottom: 20px; }
 .pagehead .actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
@@ -67,7 +67,8 @@ main { max-width: 1240px; margin: 0 auto; padding: 28px 36px 56px; }
 /* ---- 카드 · 표 ---- */
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
 .card.flush { padding: 0; overflow: hidden; }
-.card.flush > .tabstrip { padding: 0 20px; }
+.card.flush .tabstrip { padding: 0 20px; }
+.card.flush .ledgercard { border: 0; box-shadow: none; margin: 0; border-radius: 0; }
 .muted { color: var(--muted); }
 .small { font-size: 13px; }
 .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -212,7 +213,7 @@ a.tel { color: var(--brand); font-weight: 600; }
 #toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: #1d2230; color: #fff;
   padding: 11px 20px; border-radius: 999px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 40; max-width: 90vw; }
 #toast.show { opacity: 1; }
-#toast.error { background: var(--danger); color: #fff; }
+#toast.bad { background: var(--danger); color: #fff; }
 
 /* ---- 제약회사 장부: 위쪽 줄, 컴팩트한 처리 중 패널, 엑셀 같은 내역표 ---- */
 .stickybar { flex-wrap: wrap; }
@@ -246,13 +247,13 @@ a.tel { color: var(--brand); font-weight: 600; }
 .card.ledgercard { padding: 4px 8px 0; }
 .ledger tbody td { padding-top: 9px; padding-bottom: 9px; }
 .ledger.fixed { table-layout: fixed; }
-.ledger.fixed .c-date { width: 132px; } .ledger.fixed .c-in { width: 112px; } .ledger.fixed .c-ret { width: 96px; }
-.ledger.fixed .c-pay { width: 112px; } .ledger.fixed .c-bal { width: 118px; } .ledger.fixed .c-menu { width: 56px; }
 /* 입력 줄: 표 바로 아래, 열 너비가 표와 같다. 표가 길어도 화면 아래쪽에 붙어서 어디를 보고 있든 바로 추가할 수 있다 */
-.addbar { display: grid; grid-template-columns: 132px minmax(0, 1fr) 112px 96px 112px 118px 56px; align-items: center;
+.addbar { display: grid; align-items: center;
   position: sticky; bottom: 0; z-index: 3; background: var(--card); border-top: 2px solid var(--brand-soft);
   box-shadow: 0 -10px 14px -12px rgba(20, 30, 60, .3); margin: 0 -8px; padding: 6px 8px; }
 .addbar .cell { padding: 0 8px; min-width: 0; }
+.addbar .btn.small { padding: 4px 10px; width: 100%; }
+a.tel { white-space: nowrap; }
 .addbar input[type=text] { min-height: 36px; padding: 4px 8px; font-size: 14px; width: 100%; }
 .addbar .num input { text-align: right; }
 .addbar .datewrap { gap: 2px; }
@@ -263,13 +264,35 @@ a.tel { color: var(--brand); font-weight: 600; }
 .vendortoggle { display: none; }
 
 /* 중간 크기 화면(노트북): 사이드바는 아이콘만 보여서 표에 폭을 더 준다 */
-@media (min-width: 901px) and (max-width: 1300px) {
+@media (min-width: 901px) and (max-width: 1500px) {
   .shell { grid-template-columns: 72px 1fr; }
   .side { padding: 20px 8px; align-items: stretch; }
   .side .brand { justify-content: center; padding: 4px 0 20px; }
   .side .brandname, nav.tabs .label, .navlogout .label { display: none; }
   nav.tabs button, .navlogout { justify-content: center; padding: 12px 0; }
 }
+/* ---- 병원 외상: 왼쪽 내역표 + 오른쪽 품목 단가표, 환자 외상: 이름 누르면 전체 목록 ---- */
+.hospgrid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.hospgrid > * { min-width: 0; }
+.hospbar { grid-column: 1 / -1; margin-bottom: 0; }
+.earlier { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 8px 2px; }
+.cardtitle { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 10px 8px 4px; }
+.cardtitle strong { font-size: 15px; }
+.ledger.fixed .amt, .pricecard .amt { width: 100%; }
+.emptyrow td { color: var(--muted); text-align: center; padding: 28px 8px; }
+.emptyrow td:empty { padding: 0; border: 0; }
+.namebtn { border: 0; background: none; padding: 0; color: var(--text); font: inherit; font-weight: 500; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; text-align: left; }
+.namebtn:hover { color: var(--brand); text-decoration-color: var(--brand); }
+.ink { color: var(--text); }
+dialog.history { width: min(780px, 94vw); max-height: 86vh; overflow: auto; border: 1px solid var(--line); border-radius: 14px; padding: 22px;
+  background: var(--card); color: var(--text); font: inherit; box-shadow: 0 24px 64px rgba(20, 30, 60, .3); }
+dialog.history::backdrop { background: rgba(15, 19, 32, .45); }
+table.plain td { padding: 12px 8px; }
+@media (max-width: 1279px) {
+  .hospgrid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 1560px) {
   .ledgergrid { grid-template-columns: 1fr; }
 }
@@ -316,7 +339,7 @@ a.tel { color: var(--brand); font-weight: 600; }
   .ledger td { display: block; padding: 2px 6px; }
   .ledger td::before { display: block; font-size: 11px; }
   .ledger td[data-label="날짜"], .ledger td[data-label="기준"] { flex: 0 0 auto; font-weight: 600; }
-  .ledger td[data-label="내용"], .ledger td[data-label="환자명·품목"] { flex: 1 1 40%; min-width: 0; }
+  .ledger td[data-label="내용"], .ledger td[data-label="환자명·품목"], .ledger td[data-label="환자명"], .ledger td[data-label="외상 내용"], .ledger td[data-label="제품명"] { flex: 1 1 40%; min-width: 0; }
   .ledger td.num { flex: 1 1 22%; text-align: right; }
   .ledger td:empty { display: none; }
   .group table tr { background: var(--card); }
@@ -333,8 +356,14 @@ a.tel { color: var(--brand); font-weight: 600; }
   .addbar input[type=text] { min-height: 42px; font-size: 16px; }
   .addfab { display: inline-flex; position: fixed; right: 14px; bottom: 78px; z-index: 25; box-shadow: 0 6px 18px rgba(47, 85, 230, .35); }
   .card.process { grid-template-columns: 1fr; }
+  .ledger .emptyrow { display: none; }
+  .hospbar { margin-bottom: 0; }
   .vendortoggle { display: flex; width: 100%; justify-content: space-between; }
   .listbox:not(.open) > :not(.vendortoggle) { display: none; }
   .listbox { padding: 10px; }
   .listbox.open .vendortoggle { margin-bottom: 10px; }
+  /* 연체 줄은 카드 전체가 한 색으로, 입력칸은 잘리지 않게 */
+  .ledger tr.overdue-row { background: var(--danger-bg); }
+  .ledger tr.overdue-row td { background: transparent; }
+  .ledger.fixed .amt { width: 124px; }
 }

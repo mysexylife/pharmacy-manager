@@ -610,7 +610,7 @@ export function buildRoutes(db, ctx = {}) {
     },
     {
       method: 'GET', path: '/api/hospital-products', access: 'user',
-      handler: () => ({ body: q('SELECT id, name, price FROM hospital_products ORDER BY name').all() }),
+      handler: () => ({ body: q('SELECT id, name, price FROM hospital_products ORDER BY id').all() }),
     },
     {
       method: 'POST', path: '/api/hospital-products', access: 'user',
@@ -641,38 +641,26 @@ export function buildRoutes(db, ctx = {}) {
 
     // ===== 환자 외상 ==========================================================
     {
+      // 한 줄이 외상 한 건이다. 오래된 순서이고, status: open(미완불, 기본) | paid(완불 내역) | all.
+      // 건수와 합계는 검색과 상관없이 전체 미완불 기준이다.
       method: 'GET', path: '/api/credits', access: 'user',
       handler: ({ query }) => {
         const today = todayKST();
         const overdueDays = getSetting(db, 'overdue_days');
-        const all = query.get('status') === 'all';
+        const status = query.get('status');
+        const where = status === 'all' ? '' : status === 'paid' ? 'AND paid = 1' : 'AND paid = 0';
         const search = (query.get('q') || '').trim();
         let rows = q(`SELECT id, date, name, rrn_front, phone, content, amount, memo_done, paid, paid_date, note
-          FROM credits WHERE deleted_at IS NULL ${all ? '' : 'AND paid = 0'}`).all();
+          FROM credits WHERE deleted_at IS NULL ${where} ORDER BY date, id`).all();
         if (search) rows = rows.filter((r) => r.name.includes(search) || r.rrn_front.includes(search));
-        const items = rows.map((r) => creditRow(r, today, overdueDays));
-        // 연체가 맨 위(오래된 것부터), 그다음은 최근 외상부터
-        items.sort((a, b) => (b.overdue - a.overdue) || (a.overdue ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date)) || b.id - a.id);
-        const groups = new Map();
-        for (const r of items.filter((i) => !i.paid)) {
-          const key = `${r.name}|${r.rrn_front}`;
-          const g = groups.get(key) ?? { key, name: r.name, rrn_front: r.rrn_front, phone: '', total: 0, count: 0, overdueCount: 0, oldest: r.date };
-          g.total += r.amount;
-          g.count += 1;
-          g.overdueCount += r.overdue ? 1 : 0;
-          g.phone = g.phone || r.phone;
-          if (r.date < g.oldest) g.oldest = r.date;
-          groups.set(key, g);
-        }
-        const open = items.filter((i) => !i.paid);
+        const open = q('SELECT date, amount FROM credits WHERE deleted_at IS NULL AND paid = 0').all();
         return {
           body: {
-            items,
-            groups: [...groups.values()].sort((a, b) => (b.overdueCount > 0) - (a.overdueCount > 0) || a.oldest.localeCompare(b.oldest)),
+            items: rows.map((r) => creditRow(r, today, overdueDays)),
             overdueDays,
             totalOpen: open.reduce((s, r) => s + r.amount, 0),
             openCount: open.length,
-            overdueCount: open.filter((i) => i.overdue).length,
+            overdueCount: open.filter((r) => daysBetween(r.date, today) >= overdueDays).length,
           },
         };
       },

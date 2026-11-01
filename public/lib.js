@@ -4,6 +4,9 @@ export { formatDate, parseDate, todayKST };
 
 export const state = { me: null, setup: false, tab: 'due', onLogout: () => {} };
 
+// list·form은 브라우저에서 읽기 전용 속성이라 값을 넣으면 오류가 난다. 속성으로 넣는다.
+const READONLY_PROPS = new Set(['list', 'form']);
+
 // 요소를 만든다. 글자는 항상 텍스트로 넣어서 입력값이 화면 코드로 해석되지 않는다.
 export function h(tag, attrs, ...kids) {
   const el = document.createElement(tag);
@@ -11,7 +14,7 @@ export function h(tag, attrs, ...kids) {
     if (v == null || v === false) continue;
     if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
     else if (k === 'class') el.className = v;
-    else if (k in el) el[k] = v;
+    else if (k in el && !READONLY_PROPS.has(k)) el[k] = v;
     else el.setAttribute(k, v === true ? '' : v);
   }
   for (const kid of kids.flat()) {
@@ -52,7 +55,7 @@ export function toast(message, kind = '') {
     document.body.append(el);
   }
   el.textContent = message;
-  el.className = `show ${kind}`;
+  el.className = kind === 'error' ? 'show bad' : 'show';
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), kind === 'error' ? 4500 : 2200);
 }
