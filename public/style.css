@@ -1,7 +1,12 @@
 /* 레퍼런스: 왼쪽 사이드바 + 연한 회색 바탕 위의 흰 카드 + 파란 포인트 + 여유 있는 표 */
+/* Pretendard (SIL OFL 1.1, /fonts/LICENSE.txt). 한글 자주 쓰는 글자만 담은 가벼운 버전이고, 없는 글자는 기기 기본 글꼴로 보인다. */
+@font-face { font-family: 'Pretendard'; font-weight: 400; font-style: normal; font-display: swap; src: url('/fonts/Pretendard-Regular.subset.woff2') format('woff2'); }
+@font-face { font-family: 'Pretendard'; font-weight: 500; font-style: normal; font-display: swap; src: url('/fonts/Pretendard-Medium.subset.woff2') format('woff2'); }
+@font-face { font-family: 'Pretendard'; font-weight: 600; font-style: normal; font-display: swap; src: url('/fonts/Pretendard-SemiBold.subset.woff2') format('woff2'); }
+@font-face { font-family: 'Pretendard'; font-weight: 700; font-style: normal; font-display: swap; src: url('/fonts/Pretendard-Bold.subset.woff2') format('woff2'); }
 :root {
   --bg: #f5f6fa; --card: #fff; --text: #1d2230; --muted: #8a92a6; --line: #e9ecf3; --field: #fff;
-  --brand: #2f55e6; --brand-soft: #e8edfd; --brand-ink: #fff;
+  --brand: #2f55e6; --brand-soft: #e8edfd; --brand-ink: #fff; --ink: #0a0c12;
   --danger: #d93f45; --danger-bg: #fdf0f1;
   --yellow: #f2b53a; --green: #1fa463; --red: #e5484d; --blue: #4f7cf0;
   --radius: 12px; --shadow: 0 1px 2px rgba(20, 30, 60, .05);
@@ -9,13 +14,13 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0f1320; --card: #181d2c; --text: #e8ebf4; --muted: #8e97ad; --line: #272e42; --field: #121726;
-    --brand: #7b95ff; --brand-soft: #222b4d; --brand-ink: #0b1020;
+    --brand: #7b95ff; --brand-soft: #222b4d; --brand-ink: #0b1020; --ink: #f2f4fa;
     --danger: #ff8d92; --danger-bg: #3a1f26; --shadow: none;
   }
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text);
-  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+  font: 16px/1.5 "Pretendard", system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
 button, input, select { font: inherit; color: inherit; }
 h1 { font-size: 26px; font-weight: 600; margin: 0; }
 h2 { font-size: 18px; font-weight: 600; margin: 0 0 14px; }
@@ -26,10 +31,10 @@ h3 { font-size: 15px; margin: 18px 0 8px; }
 .shell { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; }
 .side { background: var(--card); border-right: 1px solid var(--line); padding: 20px 12px; position: sticky; top: 0;
   height: 100vh; display: flex; flex-direction: column; gap: 4px; }
-.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--brand); font-size: 18px; padding: 4px 12px 20px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--ink); font-size: 18px; padding: 4px 12px 20px; }
 .brand.center { justify-content: center; padding: 0 0 20px; }
-.logo { width: 30px; height: 30px; border-radius: 8px; background: var(--brand); color: var(--brand-ink);
-  display: grid; place-items: center; font-size: 15px; font-weight: 700; }
+.logo { width: 28px; height: 28px; display: inline-flex; flex: none; }
+.logo svg { width: 100%; height: 100%; display: block; }
 nav.tabs { display: flex; flex-direction: column; gap: 4px; }
 nav.tabs button, .navlogout { display: flex; align-items: center; gap: 12px; border: 0; background: none; padding: 11px 12px;
   border-radius: 8px; color: var(--text); cursor: pointer; text-align: left; font-size: 15px; width: 100%; }

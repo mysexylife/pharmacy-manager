@@ -328,6 +328,19 @@ test('백업 파일과 엑셀(CSV) 내보내기', async () => {
   assert.equal((await raw('GET', '/api/export/hospitals.csv')).status, 200);
 });
 
+test('글꼴과 아이콘 파일은 로그인 없이 받을 수 있고, 형식과 보관 설정이 맞다', async () => {
+  cookie = '';
+  const font = await raw('GET', '/fonts/Pretendard-Regular.subset.woff2');
+  assert.equal(font.status, 200);
+  assert.equal(font.headers.get('content-type'), 'font/woff2');
+  assert.match(font.headers.get('cache-control'), /max-age=31536000/);
+  const buf = Buffer.from(await font.arrayBuffer());
+  assert.equal(buf.subarray(0, 4).toString(), 'wOF2'); // 진짜 woff2 파일
+  assert.equal((await raw('GET', '/favicon.svg')).status, 200);
+  assert.equal((await raw('GET', '/fonts/../src/db.js')).status, 404); // 폴더 밖은 막는다
+  await ok('POST', '/api/login', { username: 'boss', password: 'long-enough-pass', remember: true });
+});
+
 test('로그아웃하면 다시 로그인해야 한다', async () => {
   await ok('POST', '/api/logout', {});
   assert.equal((await call('GET', '/api/vendors')).status, 401);

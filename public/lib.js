@@ -198,3 +198,12 @@ export function foldPair(label, build) {
   body.append(build({ close: hide }));
   return { trigger, body };
 }
+
+// 빨간 십자 로고 (고정된 도형만 쓴다).
+export function logo() {
+  const span = document.createElement('span');
+  span.className = 'logo';
+  span.setAttribute('aria-hidden', 'true');
+  span.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 2.5h6a1 1 0 0 1 1 1V8h4.5a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H16v4.5a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V16H3.5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1H8V3.5a1 1 0 0 1 1-1z" fill="#e5322d"/></svg>';
+  return span;
+}
