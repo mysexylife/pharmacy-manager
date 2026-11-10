@@ -7,6 +7,6 @@
   "engines": { "node": ">=22.5" },
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning src/server.js",
-    "test": "node --disable-warning=ExperimentalWarning --test test/api.test.js test/dates.test.js"
+    "test": "node --disable-warning=ExperimentalWarning --test test/api.test.js test/dates.test.js test/import.test.js"
   }
 }

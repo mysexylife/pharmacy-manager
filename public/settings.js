@@ -1,6 +1,7 @@
 import {
   h, api, errorBox, guard, submit, field, moneyField, formatDate, toast, pageHead,
 } from './lib.js';
+import { importCard } from './import.js';
 
 // 설정: 비밀번호, 기준값, 백업·엑셀 내보내기, 휴지통.
 export function settingsView() {
@@ -47,6 +48,7 @@ export function settingsView() {
         h('a', { class: 'btn ghost', href: '/api/export/vendors.csv' }, '제약회사 장부(엑셀)'),
         h('a', { class: 'btn ghost', href: '/api/export/hospitals.csv' }, '병원 외상(엑셀)'),
         h('a', { class: 'btn ghost', href: '/api/export/credits.csv' }, '환자 외상(엑셀)'))),
+    importCard(),
     h('div', { class: 'card' }, h('h2', {}, '비밀번호 바꾸기'),
       h('form', { class: 'row', onsubmit: submit(err, async (fd, form) => {
         await api('POST', '/api/password', Object.fromEntries(fd));

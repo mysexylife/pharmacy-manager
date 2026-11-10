@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { buildPlan, summarize, commit as commitImport } from './import.js';
 import { audit, tx, getSetting, setSetting, DEFAULT_SETTINGS } from './db.js';
 import {
   hashPassword, verifyPassword, createSession, destroySession, destroyOtherSessions,
@@ -213,6 +214,17 @@ export function buildRoutes(db, ctx = {}) {
   }
   ctx.purgeTrash = purgeTrash;
 
+  // 엑셀 파일(base64)을 읽어 가져오기 계획을 만든다.
+  function readPlan(body) {
+    const files = Array.isArray(body.files) ? body.files : [];
+    if (!files.length || files.length > 4 || files.some((f) => typeof f !== 'string')) throw new HttpError(400, '엑셀 파일을 선택하세요');
+    try {
+      return buildPlan(files.map((f) => Buffer.from(f, 'base64')));
+    } catch (e) {
+      throw new HttpError(400, `엑셀 파일을 읽을 수 없습니다: ${e.message}`);
+    }
+  }
+
   // ---- CSV (엑셀에서 바로 열린다) ------------------------------------------
   const csvCell = (v) => {
     let s = v == null ? '' : String(v);
@@ -293,6 +305,19 @@ export function buildRoutes(db, ctx = {}) {
         }
         audit(db, 'settings', JSON.stringify(body));
         return { body: Object.fromEntries(Object.keys(DEFAULT_SETTINGS).map((k) => [k, getSetting(db, k)])) };
+      },
+    },
+
+    // ===== 엑셀 가져오기 ====================================================
+    {
+      method: 'POST', path: '/api/import/preview', access: 'user', bodyLimit: 40 * 1024 * 1024,
+      handler: ({ body }) => ({ body: summarize(readPlan(body)) }),
+    },
+    {
+      method: 'POST', path: '/api/import/commit', access: 'user', bodyLimit: 40 * 1024 * 1024,
+      handler: ({ body }) => {
+        const useComputed = Array.isArray(body.useComputed) ? body.useComputed.filter((x) => typeof x === 'string') : [];
+        return { body: commitImport(db, readPlan(body), { useComputed }) };
       },
     },
 

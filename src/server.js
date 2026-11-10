@@ -39,12 +39,12 @@ function parseCookies(header = '') {
   return out;
 }
 
-async function readJson(req) {
+async function readJson(req, limit = MAX_BODY) {
   const chunks = [];
   let size = 0;
   for await (const c of req) {
     size += c.length;
-    if (size > MAX_BODY) throw new HttpError(413, '요청이 너무 큽니다');
+    if (size > limit) throw new HttpError(413, '요청이 너무 큽니다');
     chunks.push(c);
   }
   if (!size) return {};
@@ -97,7 +97,7 @@ export function createApp(db, { secureCookie = false, trustProxy = false } = {})
     const user = userFromToken(db, token);
     if (route.access !== 'public' && !user) throw new HttpError(401, '로그인이 필요합니다');
 
-    const body = ['POST', 'PUT', 'PATCH'].includes(req.method) ? await readJson(req) : {};
+    const body = ['POST', 'PUT', 'PATCH'].includes(req.method) ? await readJson(req, route.bodyLimit) : {};
     const ip = clientIp(req);
     const result = route.handler({
       user, token, body,
