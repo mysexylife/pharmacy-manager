@@ -35,8 +35,14 @@ function header(sheet, mustHave) {
   return null;
 }
 
-function* dataRows(sheet, rowNo) {
-  const nos = [...sheet.rows.keys()].filter((n) => n > rowNo).sort((a, b) => a - b);
+// above: 머리글 위에 잘못 적힌 거래 줄(날짜와 금액이 있는 줄)도 함께 읽는다.
+function* dataRows(sheet, rowNo, { above = null } = {}) {
+  const isEntry = (cells) => above
+    && [above.inn, above.pay].some((c) => typeof cells.get(c) === 'number')
+    && [above.date, above.date2].some((c) => c != null && serialToIso(cells.get(c)));
+  const nos = [...sheet.rows.keys()]
+    .filter((n) => n > rowNo || (n < rowNo && isEntry(sheet.rows.get(n))))
+    .sort((a, b) => a - b);
   for (const n of nos) yield [n, sheet.rows.get(n)];
 }
 
@@ -50,7 +56,7 @@ function planVendorSheet(sheet) {
   const yearFixes = [];
   const raw = [];
   let prev = null;
-  for (const [rowNo, cells] of dataRows(sheet, head.rowNo)) {
+  for (const [rowNo, cells] of dataRows(sheet, head.rowNo, { above: { inn: cols['입고액'], pay: cols['결제액'], date: cols['입고일계산'], date2: cols['입고일'] } })) {
     const desc = text(cells.get(cols['내용']));
     const inn = num(cells.get(cols['입고액']));
     const pay = num(cells.get(cols['결제액']));
