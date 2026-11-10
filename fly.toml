@@ -1,0 +1,28 @@
+# Fly.io 설정. app 이름은 전 세계에서 하나뿐이어야 하니 아래 값을 바꿔 쓰세요 (docs/DEPLOY.md 참고).
+app = "pureun-pharmacy-CHANGE-ME"
+primary_region = "nrt" # 도쿄
+
+[build]
+
+[env]
+  HOST = "0.0.0.0"
+  PORT = "3000"
+  DB_PATH = "/data/pharmacy.db"
+  SECURE_COOKIE = "1"
+  TRUST_PROXY = "1"
+
+# 데이터(SQLite 파일)가 들어가는 영구 저장소
+[mounts]
+  source = "pharmacy_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"   # 안 쓸 때는 잠들었다가 접속하면 자동으로 깨어납니다
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

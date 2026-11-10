@@ -29,6 +29,8 @@ npm start
 
 ## 서버에 올리기
 
+Fly.io(도쿄)에 올리는 순서는 [docs/DEPLOY.md](docs/DEPLOY.md)에 있습니다 (`fly.toml` 포함).
+
 이 앱은 Node 서버 + SQLite 파일 하나입니다. 어느 호스팅에든 올릴 수 있습니다.
 
 - `Dockerfile`이 있습니다. 컨테이너를 돌릴 수 있는 서비스(Fly.io, Render, Railway 등)에 올리고, **`/data`에 영구 저장소(볼륨)를 연결하세요.** 연결하지 않으면 서버를 다시 시작할 때 장부가 사라집니다.
