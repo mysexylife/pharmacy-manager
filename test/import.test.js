@@ -140,3 +140,15 @@ test('결제란에 반품이라고 적힌 줄은 반품으로 옮긴다', () => 
   assert.equal(v.entries.filter((e) => e.kind === 'payment').length, 1);
   assert.equal(v.computed, 700);
 });
+
+test('결제란에 상품명이 적힌 줄은 반품, 할인·정정 줄은 그대로 둔다', () => {
+  const buf = book([{ name: '상품명', rows: [HEAD,
+    [null, 2025, D('2025-01-02'), '약', 1000, null, 1000],
+    [null, 2025, D('2025-01-05'), '레스큐라이트', null, 100, 900],
+    [null, 2025, D('2025-01-06'), '매출할인', null, 10, 890],
+    [null, 2025, D('2025-01-07'), '결재', null, 90, 800]] }]);
+  const v = buildPlan([buf]).vendors[0];
+  assert.deepEqual(v.returns.map((r) => r.item), ['레스큐라이트']);
+  assert.deepEqual(v.entries.filter((e) => e.kind === 'payment').map((e) => e.description), ['매출할인', '결제']);
+  assert.equal(v.computed, 800);
+});
