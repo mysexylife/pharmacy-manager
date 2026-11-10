@@ -152,7 +152,11 @@ function planVendorSheet(sheet) {
       entries.push({ date: r.date, kind: 'purchase', description: r.desc || '입고', amount: r.inn });
       sum += r.inn;
     }
-    if (r.pay) {
+    if (r.pay > 0 && /반품/.test(r.desc)) {
+      // 결제란에 "…반품"이라고 적힌 줄은 반품으로 본다
+      returns.push({ date: r.date, item: r.desc.replace(/반품/g, '').trim() || r.desc, amount: r.pay });
+      sum -= r.pay;
+    } else if (r.pay) {
       const label = /결[제재]/.test(r.desc) ? '결제' : r.desc || '결제';
       if (r.pay > 0) entries.push({ date: r.date, kind: 'payment', description: label, amount: r.pay });
       else entries.push({ date: r.date, kind: 'adjust', description: label, amount: -r.pay });

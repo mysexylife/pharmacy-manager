@@ -128,3 +128,15 @@ test('엉뚱한 해로 적힌 한 줄이 뒤의 날짜를 밀어내지 않는다
   const v = buildPlan([buf]).vendors[0];
   assert.deepEqual(v.entries.map((e) => e.date), ['2024-10-18', '2024-10-24', '2024-12-04', '2025-01-10']);
 });
+
+test('결제란에 반품이라고 적힌 줄은 반품으로 옮긴다', () => {
+  const buf = book([{ name: '반품시트', rows: [HEAD,
+    [null, 2025, D('2025-01-02'), '약', 1000, null, 1000],
+    [null, 2025, D('2025-01-05'), '바이락스반품', null, 100, 900],
+    [null, 2025, D('2025-01-06'), '결제', null, 200, 700]] }]);
+  const v = buildPlan([buf]).vendors[0];
+  assert.equal(v.returns.length, 1);
+  assert.equal(v.returns[0].item, '바이락스');
+  assert.equal(v.entries.filter((e) => e.kind === 'payment').length, 1);
+  assert.equal(v.computed, 700);
+});
