@@ -18,7 +18,7 @@ SQLite 파일 하나를 쓰는 앱이라 **기계(머신)는 반드시 1대만**
 ```bash
 fly launch --no-deploy --copy-config --name 내가정한이름 --region nrt
 ```
-`fly.toml`의 `app` 값이 바뀝니다. 질문이 나오면 데이터베이스(Postgres/Redis)는 **만들지 않습니다**.
+`fly.toml`의 `app` 값이 바뀝니다. (메모장 등으로 직접 고칠 때는 **UTF-8 BOM 없이** 저장하세요. PowerShell의 `Set-Content -Encoding utf8`은 BOM이 붙어 fly가 읽지 못합니다.) 질문이 나오면 데이터베이스(Postgres/Redis)는 **만들지 않습니다**.
 
 ## 3. 저장소(볼륨) 만들기 — 반드시 1개
 ```bash

@@ -1,8 +1,9 @@
-# Fly.io 설정. app 이름은 전 세계에서 하나뿐이어야 하니 아래 값을 바꿔 쓰세요 (docs/DEPLOY.md 참고).
+# Fly.io config. Change "app" to your own unique app name (see docs/DEPLOY.md).
 app = "pureun-pharmacy-CHANGE-ME"
-primary_region = "nrt" # 도쿄
+primary_region = "nrt" # Tokyo
 
 [build]
+  dockerfile = "Dockerfile"
 
 [env]
   HOST = "0.0.0.0"
@@ -11,7 +12,7 @@ primary_region = "nrt" # 도쿄
   SECURE_COOKIE = "1"
   TRUST_PROXY = "1"
 
-# 데이터(SQLite 파일)가 들어가는 영구 저장소
+# Persistent volume for the SQLite file
 [mounts]
   source = "pharmacy_data"
   destination = "/data"
@@ -19,7 +20,7 @@ primary_region = "nrt" # 도쿄
 [http_service]
   internal_port = 3000
   force_https = true
-  auto_stop_machines = "stop"   # 안 쓸 때는 잠들었다가 접속하면 자동으로 깨어납니다
+  auto_stop_machines = "stop"   # sleeps when idle, wakes on request
   auto_start_machines = true
   min_machines_running = 0
 
