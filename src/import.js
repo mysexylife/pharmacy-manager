@@ -46,6 +46,51 @@ function* dataRows(sheet, rowNo, { above = null } = {}) {
   for (const n of nos) yield [n, sheet.rows.get(n)];
 }
 
+// 연도 칸을 잘못 적은 줄(예: 1월에도 작년 그대로, 또는 한 줄만 엉뚱한 해)을 바로잡는다.
+// 줄마다 연도를 -1/0/+1 옮겨 보고, "날짜가 크게 뒤로 가거나 앞서 나가는 곳"과 "연도를 바꾸는 횟수"가
+// 가장 적은 조합을 고른다 (비터비). 고친 줄 목록을 돌려준다.
+function fixYears(rows) {
+  const todayIso = todayKST();
+  const idx = rows.map((r, i) => (r.date ? i : -1)).filter((i) => i >= 0);
+  if (idx.length < 2) return [];
+  const shifts = [-1, 0, 1];
+  const shifted = (iso, k) => `${Number(iso.slice(0, 4)) + k}${iso.slice(4)}`;
+  const link = (a, b) => {
+    const gap = daysBetween(a, b);
+    return (gap < -90 ? 3 : 0) + (gap > 200 ? 3 : 0);
+  };
+  let cost = shifts.map((k) => (k === 0 ? 0 : 1) + (shifted(rows[idx[0]].date, k) > todayIso ? 5 : 0));
+  const back = [];
+  for (let n = 1; n < idx.length; n++) {
+    const prevDate = (k) => shifted(rows[idx[n - 1]].date, k);
+    const next = [];
+    const from = [];
+    shifts.forEach((k, j) => {
+      const here = shifted(rows[idx[n]].date, k);
+      let best = Infinity;
+      let arg = 0;
+      shifts.forEach((pk, pj) => {
+        const c = cost[pj] + (pj === j ? 0 : 1) + link(prevDate(pk), here);
+        if (c < best) { best = c; arg = pj; }
+      });
+      next.push(best + (here > todayIso ? 5 : 0));
+      from.push(arg);
+    });
+    cost = next;
+    back.push(from);
+  }
+  let j = cost.indexOf(Math.min(...cost));
+  const fixed = [];
+  for (let n = idx.length - 1; n >= 0; n--) {
+    const r = rows[idx[n]];
+    if (shifts[j] !== 0) fixed.push({ rowNo: r.rowNo, from: r.date, date: shifted(r.date, shifts[j]), r });
+    if (n > 0) j = back[n - 1][j];
+  }
+  fixed.reverse();
+  for (const f of fixed) f.r.date = f.date;
+  return fixed;
+}
+
 // ---- 제약회사 ----------------------------------------------------------
 function planVendorSheet(sheet) {
   const head = header(sheet, ['입고액', '결제액', '잔고']);
@@ -63,14 +108,6 @@ function planVendorSheet(sheet) {
     const bal = num(cells.get(cols['잔고']));
     if (!desc && inn == null && pay == null) continue;
     let date = isoOf(cells.get(dateCol)) ?? isoOf(cells.get(cols['입고일']));
-    if (date && prev && daysBetween(prev, date) < -200) {
-      const bumped = `${Number(date.slice(0, 4)) + 1}${date.slice(4)}`;
-      const gap = daysBetween(prev, bumped);
-      if (gap > -60 && gap < 200) {
-        yearFixes.push(`행 ${rowNo}: ${date} → ${bumped}`);
-        date = bumped;
-      }
-    }
     if (!date) {
       date = prev;
       warnings.push(`행 ${rowNo}: 날짜가 없어 앞 행의 날짜(${prev ?? '없음'})로 넣었습니다`);
@@ -78,6 +115,7 @@ function planVendorSheet(sheet) {
     if (date) prev = date;
     raw.push({ rowNo, desc, inn, pay, bal, date });
   }
+  for (const r of fixYears(raw)) yearFixes.push(`행 ${r.rowNo}: ${r.from} → ${r.date}`);
   const firstDate = raw.map((r) => r.date).filter(Boolean).sort()[0] ?? todayKST();
   for (const r of raw) r.date ??= firstDate;
 

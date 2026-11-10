@@ -118,3 +118,13 @@ test('연도 칸이 늦게 바뀐 줄은 1년 뒤로 보정한다', () => {
   assert.equal(v.entries[1].date, '2026-01-05');
   assert.equal(v.yearFixes.length, 1);
 });
+
+test('엉뚱한 해로 적힌 한 줄이 뒤의 날짜를 밀어내지 않는다', () => {
+  const buf = book([{ name: '단일', rows: [HEAD,
+    [null, 2024, D('2024-10-18'), '약', 100, null, 100],
+    [null, 2025, D('2025-10-24'), '결제', null, 10, 90], // 2024-10-24의 오타
+    [null, 2024, D('2024-12-04'), '약', 100, null, 190],
+    [null, 2025, D('2025-01-10'), '약', 100, null, 290]] }]);
+  const v = buildPlan([buf]).vendors[0];
+  assert.deepEqual(v.entries.map((e) => e.date), ['2024-10-18', '2024-10-24', '2024-12-04', '2025-01-10']);
+});
