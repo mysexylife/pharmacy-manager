@@ -100,7 +100,7 @@ export function hospitalsView() {
     const field = (name, label, placeholder = label) => h('input', { name, type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder, 'aria-label': label });
     const qty = field('qty', '수량');
     const original = field('original', '원래 금액');
-    const discount = field('discount', '할인액', `기본 ${won(settings.rx_discount)}`);
+    const discount = field('discount', '할인액');
     const billed = field('billed', '외상액');
     const paid = field('paid', '결제액');
     const preview = h('span', { class: 'dim' }, '');

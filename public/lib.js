@@ -97,7 +97,7 @@ export function dateField(label, name = 'date', { value = todayKST(), cls = 'nar
   input.value = formatDate(value);
   const picker = h('input', { type: 'date', class: 'datepick', tabindex: '-1', 'aria-hidden': 'true' });
   picker.addEventListener('change', () => {
-    if (picker.value) { input.value = formatDate(picker.value); input.setCustomValidity(''); }
+    if (picker.value) { input.value = formatDate(picker.value); input.setCustomValidity(''); input.focus(); }
   });
   input.addEventListener('input', () => input.setCustomValidity(''));
   input.addEventListener('blur', () => {
@@ -105,7 +105,7 @@ export function dateField(label, name = 'date', { value = todayKST(), cls = 'nar
     if (iso) input.value = formatDate(iso);
     else if (input.value.trim()) input.setCustomValidity('날짜를 다시 확인하세요 (예: 26.10.31)');
   });
-  const cal = h('button', { type: 'button', class: 'btn ghost small', 'aria-label': '달력으로 고르기', onclick: () => picker.showPicker?.() }, '달력');
+  const cal = h('button', { type: 'button', class: 'btn ghost small', 'aria-label': '달력으로 고르기', onclick: () => openPicker(picker) }, '달력');
   return h('label', { class: `f ${cls} datecell` }, label, h('span', { class: 'datewrap' }, input, cal, picker));
 }
 
@@ -212,19 +212,24 @@ export function logo() {
   return span;
 }
 
+// 달력 창을 연다. showPicker가 없거나 막히면 클릭으로 대신 연다.
+function openPicker(picker) {
+  try { picker.showPicker(); } catch { picker.click(); }
+}
+
 // 표 한 칸에 들어가는 작은 날짜 입력: 어떻게 쓰든 26.10.31 형식으로 바뀌고, 달력으로도 고를 수 있다.
 export function dateInput(name, value = todayKST()) {
   const input = h('input', { name, type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder: '26.10.31', 'aria-label': '날짜' });
   input.defaultValue = formatDate(value);
   input.value = formatDate(value);
   const picker = h('input', { type: 'date', class: 'datepick', tabindex: '-1', 'aria-hidden': 'true' });
-  picker.addEventListener('change', () => { if (picker.value) { input.value = formatDate(picker.value); input.setCustomValidity(''); } });
+  picker.addEventListener('change', () => { if (picker.value) { input.value = formatDate(picker.value); input.setCustomValidity(''); input.focus(); } });
   input.addEventListener('input', () => input.setCustomValidity(''));
   input.addEventListener('blur', () => {
     const iso = parseDate(input.value);
     if (iso) input.value = formatDate(iso);
     else if (input.value.trim()) input.setCustomValidity('날짜를 다시 확인하세요 (예: 26.10.31)');
   });
-  const cal = h('button', { type: 'button', class: 'iconbtn small', tabindex: '-1', 'aria-label': '달력으로 고르기', onclick: () => picker.showPicker?.() }, icon('calendar'));
+  const cal = h('button', { type: 'button', class: 'iconbtn small', tabindex: '-1', 'aria-label': '달력으로 고르기', onclick: () => openPicker(picker) }, icon('calendar'));
   return { input, node: h('span', { class: 'datewrap cell' }, input, cal, picker) };
 }
