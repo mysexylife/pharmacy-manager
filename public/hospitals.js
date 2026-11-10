@@ -37,22 +37,21 @@ export function hospitalsView() {
       hospitals = await api('GET', '/api/hospitals');
     }
     const hospital = hospitals[0];
-    const [d, products, settings] = await Promise.all([
+    const [d, products] = await Promise.all([
       api('GET', `/api/hospitals/${hospital.id}/ledger?from=${addMonths(todayKST(), -back)}`),
       api('GET', '/api/hospital-products'),
-      api('GET', '/api/settings'),
     ]);
     detail.replaceChildren(
       h('div', { class: 'stickybar hospbar' },
         h('strong', {}, d.hospital.name),
         h('span', {}, '현재 잔고 ', h('b', { class: d.balance < 0 ? 'neg' : '' }, `${won(d.balance)}원`))),
-      ledgerCard(d, products, settings),
+      ledgerCard(d, products),
       pricePanel(products));
     if (refocus) { refs.item?.focus(); refocus = false; }
   }
 
   // ---- 내역표 ---------------------------------------------------------
-  function ledgerCard(d, products, settings) {
+  function ledgerCard(d, products) {
     const rows = [];
     if (d.hasEarlier) {
       rows.push(h('tr', { class: 'opening' },
@@ -73,7 +72,7 @@ export function hospitalsView() {
           if (confirmDelete(`${formatDate(e.date)} ${e.item}`)) await api('DELETE', `/api/hospital-entries/${e.id}`);
         })))));
     }
-    const cells = buildAddRow(d, products, settings);
+    const cells = buildAddRow(d, products);
     const card = sheet({
       cols: ['132px', 'minmax(0, 1fr)', '56px', '96px', '92px', '96px', '96px', '104px', '60px'],
       heads: [['날짜'], ['환자명·품목'], ['수량', true], ['원래 금액', true], ['할인액', true], ['외상액', true], ['결제액', true], ['잔고', true], ['']],
@@ -90,10 +89,10 @@ export function hospitalsView() {
 
   // 입력 줄: 채운 칸으로 종류를 알아낸다.
   //   결제액           → 결제
-  //   원래 금액        → 처방조제약 (할인액을 비우면 기본 할인액, 외상액은 자동)
+  //   원래 금액        → 처방조제약 (외상액 = 원래 금액 − 직접 입력한 할인액, 비우면 할인 없음)
   //   외상액           → 일반의약품 직접 입력 (음수면 조정)
   //   품목 이름 + 수량 → 단가표에 있는 일반의약품 (외상액은 단가 × 수량)
-  function buildAddRow(d, products, settings) {
+  function buildAddRow(d, products) {
     const date = dateInput('date', lastDate);
     const list = h('datalist', { id: 'hospital-products' }, products.map((p) => h('option', { value: p.name })));
     const item = h('input', { name: 'item', type: 'text', autocomplete: 'off', placeholder: '환자명 · 품목', list: 'hospital-products', 'aria-label': '환자명·품목' });
@@ -117,8 +116,8 @@ export function hospitalsView() {
       if (filled > 1) throw new Error('원래 금액, 외상액, 결제액 중 하나만 입력하세요');
       if (p) return { kind: 'payment', delta: -p, body: { paid: p } };
       if (o) {
-        const disc = discount.value.trim() === '' ? settings.rx_discount : moneyOf(discount.value);
-        return { kind: 'rx', delta: Math.max(0, o - disc), body: { original: o, discount: discount.value.trim() === '' ? undefined : disc } };
+        const disc = moneyOf(discount.value); // 자동 할인은 없다. 비우면 할인 없이 원래 금액 그대로
+        return { kind: 'rx', delta: Math.max(0, o - disc), body: { original: o, discount: disc } };
       }
       if (b) return { kind: b < 0 ? 'adjust' : 'otc', delta: b, body: { billed: b, qty: b < 0 ? undefined : q } };
       const prod = productOf();

@@ -29,7 +29,6 @@ export function settingsView() {
     const s = await api('GET', '/api/settings');
     settingsForm.replaceChildren(
       moneyField('연체 기준(일)', 'overdue_days', { value: String(s.overdue_days), required: true }),
-      moneyField('처방조제약 할인액(원)', 'rx_discount', { value: String(s.rx_discount), required: true }),
       h('button', { class: 'btn', type: 'submit' }, '저장'));
   });
   settingsForm.addEventListener('submit', submit(err, async (fd) => {

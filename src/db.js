@@ -136,7 +136,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 `;
 
-export const DEFAULT_SETTINGS = { overdue_days: 30, rx_discount: 5000 };
+export const DEFAULT_SETTINGS = { overdue_days: 30 };
 
 export function openDb(path) {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });

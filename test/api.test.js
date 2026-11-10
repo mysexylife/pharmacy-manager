@@ -199,10 +199,10 @@ test('거래처를 비활성화하면 결제 대상에서 빠진다', async () =
 });
 
 // ---------------------------------------------------------------- 병원 외상
-test('병원 외상: 처방조제약은 5,000원 할인, 일반의약품은 단가표 × 수량, 단가가 바뀌어도 과거는 그대로', async () => {
+test('병원 외상: 처방조제약은 직접 입력한 할인액만큼 할인, 일반의약품은 단가표 × 수량, 단가가 바뀌어도 과거는 그대로', async () => {
   const h = (await ok('POST', '/api/hospitals', { name: '한사랑병원' }, 201)).id;
   const p = (await ok('POST', '/api/hospital-products', { name: '메디폼대', price: 24000 }, 201)).id;
-  const rx = await ok('POST', `/api/hospitals/${h}/entries`, { kind: 'rx', date: '26.10.01', item: '홍길동', original: '30,000' }, 201);
+  const rx = await ok('POST', `/api/hospitals/${h}/entries`, { kind: 'rx', date: '26.10.01', item: '홍길동', original: '30,000', discount: '5,000' }, 201);
   assert.equal(rx.billed, 25000);
   const otc = await ok('POST', `/api/hospitals/${h}/entries`, { kind: 'otc', date: '26.10.02', product_id: p, qty: 2 }, 201);
   assert.equal(otc.billed, 48000);
@@ -225,12 +225,17 @@ test('병원 외상: 처방조제약은 5,000원 할인, 일반의약품은 단�
   assert.equal(recent.balance, 30000);
 });
 
-test('처방조제약 할인액 기본값은 설정에서 바꾼다', async () => {
-  await ok('PUT', '/api/settings', { rx_discount: 3000 });
-  const h = (await ok('POST', '/api/hospitals', { name: '설정병원' }, 201)).id;
-  const rx = await ok('POST', `/api/hospitals/${h}/entries`, { kind: 'rx', date: '26.10.01', item: '김', original: 10000 }, 201);
-  assert.equal(rx.billed, 7000);
-  await ok('PUT', '/api/settings', { rx_discount: 5000 });
+test('처방조제약: 자동 할인은 없고, 할인액을 비우면 원래 금액 그대로 외상이 된다', async () => {
+  const h = (await ok('POST', '/api/hospitals', { name: '자동할인없음병원' }, 201)).id;
+  const none = await ok('POST', `/api/hospitals/${h}/entries`, { kind: 'rx', date: '26.10.01', item: '김', original: 10000 }, 201);
+  assert.equal(none.billed, 10000);
+  const blank = await ok('POST', `/api/hospitals/${h}/entries`, { kind: 'rx', date: '26.10.02', item: '이', original: 10000, discount: '' }, 201);
+  assert.equal(blank.billed, 10000);
+  const manual = await ok('POST', `/api/hospitals/${h}/entries`, { kind: 'rx', date: '26.10.03', item: '박', original: 10000, discount: 2500 }, 201);
+  assert.equal(manual.billed, 7500);
+  const rows = (await ok('GET', `/api/hospitals/${h}/ledger`)).entries;
+  assert.deepEqual(rows.map((r) => r.discount).sort(), [0, 0, 2500]); // 할인액은 입력한 값 그대로 기록된다
+  assert.equal('rx_discount' in (await ok('GET', '/api/settings')), false); // 자동 할인 설정은 없다
 });
 
 // ---------------------------------------------------------------- 환자 외상

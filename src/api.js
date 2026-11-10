@@ -570,7 +570,7 @@ export function buildRoutes(db, ctx = {}) {
           // 처방조제약: 원래 금액을 직접 입력하고, 할인액(기본 5,000원)은 자동으로 뺀다.
           row.item = str(body.item, '환자명', { required: true });
           row.original = money(body.original, '원래 금액');
-          row.discount = money(body.discount, '할인액', { blank: getSetting(db, 'rx_discount') });
+          row.discount = money(body.discount, '할인액', { blank: 0 }); // 자동 할인은 없다. 할인액은 직접 입력하고, 비우면 할인 없음
           if (row.discount > row.original) throw new HttpError(400, '할인액이 원래 금액보다 클 수 없습니다');
           row.billed = row.original - row.discount;
         } else if (kind === 'otc') {
