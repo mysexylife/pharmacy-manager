@@ -83,7 +83,7 @@ export function creditsView() {
     const heads = [['날짜'], ['환자명'], ['주민번호 앞'], ['연락처'], ['외상 내용'], ['외상액', true],
       [paidTab ? '완불 날짜' : '메모장 작성'], ['완불'], ['비고'], ['']];
     const card = sheet({
-      cols: COLS, heads, rows, addCells: paidTab ? null : buildAddRow(), focusEl: refs.name, className: 'creditsheet',
+      cols: COLS, heads, rows, addCells: paidTab ? null : buildAddRow(), focusEl: refs.name, className: 'creditsheet', filterKey: `credits-${tab}`,
     });
     // 열 제목 아래에 체크 칸 설명을 한 번만 보여 준다 (직원이 헷갈리지 않도록)
     const ths = card.querySelectorAll('thead th');

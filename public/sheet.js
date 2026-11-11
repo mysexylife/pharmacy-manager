@@ -1,4 +1,5 @@
 import { h } from './lib.js';
+import { attachFilters } from './filter.js';
 
 // 엑셀 같은 내역표: 열 너비가 고정된 표 + 바로 아래에 붙는 입력 줄.
 // 표가 길어도 입력 줄은 화면 아래쪽에 계속 붙어 있어서, 표 어디를 보고 있든 바로 추가할 수 있다.
@@ -9,7 +10,7 @@ import { h } from './lib.js';
 //   focusEl   "+ 행 추가" 버튼을 누르면 커서가 갈 곳 (폰)
 export const cell = (label, ...kids) => h('div', { class: 'cell', 'data-label': label }, ...kids);
 
-export function sheet({ cols, heads, rows, addCells, focusEl, className = '' }) {
+export function sheet({ cols, heads, rows, addCells, focusEl, className = '', filterKey = null }) {
   const colgroup = h('colgroup', {}, cols.map((w) => {
     const col = h('col');
     if (!w.startsWith('minmax')) col.style.width = w;
@@ -37,6 +38,7 @@ export function sheet({ cols, heads, rows, addCells, focusEl, className = '' }) 
       focusEl?.focus({ preventScroll: true });
     } }, '+ 행 추가'));
   }
+  if (filterKey) attachFilters(card, filterKey, heads);
   requestAnimationFrame(fit);
   return card;
 }
