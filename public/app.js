@@ -55,7 +55,7 @@ function shell() {
       h('aside', { class: 'side' },
         h('div', { class: 'brand' }, logo(), h('span', { class: 'brandname' }, '푸른약국')),
         nav,
-        undoControls('side'),
+        undoControls('insidebar'),
         h('button', { type: 'button', class: 'navlogout', title: '로그아웃', onclick: logout }, icon('logout'), h('span', { class: 'label' }, '로그아웃'))),
       h('div', { class: 'content' },
         h('header', { class: 'topbar' }, h('div', { class: 'brand' }, logo(), h('span', { class: 'brandname' }, '푸른약국')),
