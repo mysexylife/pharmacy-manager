@@ -199,6 +199,13 @@ test('거래처를 비활성화하면 결제 대상에서 빠진다', async () =
 });
 
 // ---------------------------------------------------------------- 병원 외상
+test('병원 단가표는 이름순(가나다)으로 나온다', async () => {
+  for (const name of ['타이레놀', '가스활명수', '나오덤']) await ok('POST', '/api/hospital-products', { name, price: 1000 }, 201);
+  const list = await ok('GET', '/api/hospital-products');
+  const names = list.map((x) => x.name).filter((n) => ['타이레놀', '가스활명수', '나오덤'].includes(n));
+  assert.deepEqual(names, ['가스활명수', '나오덤', '타이레놀']);
+});
+
 test('병원 외상: 처방조제약은 직접 입력한 할인액만큼 할인, 일반의약품은 단가표 × 수량, 단가가 바뀌어도 과거는 그대로', async () => {
   const h = (await ok('POST', '/api/hospitals', { name: '한사랑병원' }, 201)).id;
   const p = (await ok('POST', '/api/hospital-products', { name: '메디폼대', price: 24000 }, 201)).id;

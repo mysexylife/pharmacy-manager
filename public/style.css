@@ -401,3 +401,9 @@ table.plain td { padding: 12px 8px; }
   .undobar.top .label { display: none; }
   .undobar.top .undobtn { padding: 8px; }
 }
+
+/* 병원 단가표: 줄 높이를 낮춰 한눈에 많이 보이게 */
+.pricecard .ledger th { padding: 8px; }
+.pricecard .ledger tbody td { padding: 3px 8px; font-size: 13.5px; }
+.pricecard .ledger.fixed .amt, .pricecard .amt { min-height: 26px; padding: 1px 8px; font-size: 13.5px; }
+.pricecard .rowmenu, .pricecard .kebab { padding: 2px 8px; min-height: 24px; }

@@ -635,7 +635,7 @@ export function buildRoutes(db, ctx = {}) {
     },
     {
       method: 'GET', path: '/api/hospital-products', access: 'user',
-      handler: () => ({ body: q('SELECT id, name, price FROM hospital_products ORDER BY id').all() }),
+      handler: () => ({ body: q('SELECT id, name, price FROM hospital_products ORDER BY name').all() }),
     },
     {
       method: 'POST', path: '/api/hospital-products', access: 'user',
