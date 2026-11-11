@@ -20,13 +20,23 @@ export function sheet({ cols, heads, rows, addCells, focusEl, className = '' }) 
     h('thead', {}, h('tr', {}, heads.map(([text, num]) => h('th', { class: num ? 'num' : '' }, text)))),
     h('tbody', {}, rows));
   const card = h('div', { class: `card ledgercard ${className}` }, table);
+  // 카드 폭이 열들이 들어갈 최소 폭보다 좁아지면 "카드형"(폰 모양)으로 바꾼다. 창 크기가 아니라 실제 표 폭을 기준으로 한다.
+  const minWidth = cols.reduce((n, w) => n + Number(/^(?:minmax\()?(\d+)px/.exec(w)?.[1] ?? 0), 0) + 24;
+  let bar = null;
+  const fit = () => {
+    const stacked = card.clientWidth > 0 && card.clientWidth < minWidth;
+    card.classList.toggle('stack', stacked);
+    if (bar) bar.style.gridTemplateColumns = stacked ? '' : cols.join(' ');
+  };
+  new ResizeObserver(fit).observe(card);
   if (addCells) {
-    const bar = h('div', { class: 'addbar' }, addCells);
+    bar = h('div', { class: 'addbar' }, addCells);
     bar.style.gridTemplateColumns = cols.join(' ');
     card.append(bar, h('button', { type: 'button', class: 'btn addfab', onclick: () => {
       bar.scrollIntoView({ block: 'center', behavior: 'smooth' });
       focusEl?.focus({ preventScroll: true });
     } }, '+ 행 추가'));
   }
+  requestAnimationFrame(fit);
   return card;
 }

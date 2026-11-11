@@ -181,7 +181,7 @@ export function vendorsView() {
     }
     const cells = buildAddRow(v, d);
     return sheet({
-      cols: ['132px', 'minmax(0, 1fr)', '112px', '96px', '112px', '118px', '60px'],
+      cols: ['124px', 'minmax(150px, 1fr)', '100px', '88px', '100px', '108px', '44px'],
       heads: [['날짜'], ['내용'], ['입고액', true], ['반품액', true], ['결제액', true], ['잔고', true], ['']],
       rows, addCells: cells, focusEl: refs.description,
     });

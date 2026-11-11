@@ -289,7 +289,7 @@ dialog.history { width: min(780px, 94vw); max-height: 86vh; overflow: auto; bord
   background: var(--card); color: var(--text); font: inherit; box-shadow: 0 24px 64px rgba(20, 30, 60, .3); }
 dialog.history::backdrop { background: rgba(15, 19, 32, .45); }
 table.plain td { padding: 12px 8px; }
-@media (max-width: 1279px) {
+@media (max-width: 1700px) {
   .hospgrid { grid-template-columns: 1fr; }
 }
 
@@ -319,7 +319,6 @@ table.plain td { padding: 12px 8px; }
   .stickybar { top: 49px; }
 }
 @media (max-width: 720px) {
-  .split { grid-template-columns: 1fr; }
   .partylist { max-height: 34vh; }
   .stickybar { font-size: 16px; padding: 10px 14px; }
   .stats { grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -334,32 +333,9 @@ table.plain td { padding: 12px 8px; }
   td:not([data-label])::before { content: none; }
   td:empty { display: none; }
   td.num { text-align: right; }
-  /* 장부 표는 폰에서 항목마다 두 줄로 줄여, 스크롤을 줄인다 */
-  .ledger tr { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; padding: 6px 4px; }
-  .ledger td { display: block; padding: 2px 6px; }
-  .ledger td::before { display: block; font-size: 11px; }
-  .ledger td[data-label="날짜"], .ledger td[data-label="기준"] { flex: 0 0 auto; font-weight: 600; }
-  .ledger td[data-label="내용"], .ledger td[data-label="환자명·품목"], .ledger td[data-label="환자명"], .ledger td[data-label="외상 내용"], .ledger td[data-label="제품명"] { flex: 1 1 40%; min-width: 0; }
-  .ledger td.num { flex: 1 1 22%; text-align: right; }
-  .ledger td:empty { display: none; }
-  .group table tr { background: var(--card); }
-  .rowhint { display: inline; }
-  /* 제약회사 장부 입력 줄: 폰에서는 카드 모양이고, 떠 있는 "+ 행 추가" 버튼이 입력 줄로 데려간다 */
-  .addbar { position: static; grid-template-columns: 1fr 1fr; gap: 8px; border: 1.5px solid var(--brand); border-radius: 10px;
-    box-shadow: none; margin: 8px 0 4px; padding: 10px; }
-  .addbar .cell { padding: 0; }
-  .addbar .cell::before { content: attr(data-label); display: block; color: var(--muted); font-size: 11px; margin-bottom: 2px; }
-  .addbar .cell:nth-child(2), .addbar .cell:last-child { grid-column: 1 / -1; }
-  .addbar .cell:last-child::before { content: none; }
-  .addbar .cell:last-child .btn { width: 100%; }
   .hide-sm { display: none !important; }
-  .addbar input[type=text] { min-height: 42px; font-size: 16px; }
-  .addfab { display: inline-flex; position: fixed; right: 14px; bottom: 78px; z-index: 25; box-shadow: 0 6px 18px rgba(47, 85, 230, .35); }
   .card.process { grid-template-columns: 1fr; }
-  .ledger .emptyrow { display: none; }
   .hospbar { margin-bottom: 0; }
-  .vendortoggle { display: flex; width: 100%; justify-content: space-between; }
-  .listbox:not(.open) > :not(.vendortoggle) { display: none; }
   .listbox { padding: 10px; }
   .listbox.open .vendortoggle { margin-bottom: 10px; }
   /* 연체 줄은 카드 전체가 한 색으로, 입력칸은 잘리지 않게 */
@@ -367,3 +343,38 @@ table.plain td { padding: 12px 8px; }
   .ledger tr.overdue-row td { background: transparent; }
   .ledger.fixed .amt { width: 124px; }
 }
+
+/* 제약회사 목록은 1200px 이하에서 접어서 표에 폭을 준다 */
+@media (max-width: 1200px) {
+  .split { grid-template-columns: 1fr; }
+  .vendortoggle { display: flex; width: 100%; justify-content: space-between; }
+  .listbox:not(.open) > :not(.vendortoggle) { display: none; }
+  .listbox:not(.open) { padding: 8px; }
+}
+
+/* 표 폭이 좁아지면(JS가 .stack을 붙임) 항목마다 두 줄 카드로 바꾼다 */
+.ledgercard.stack table, .ledgercard.stack thead, .ledgercard.stack tbody, .ledgercard.stack tr, .ledgercard.stack td { display: block; }
+.ledgercard.stack thead, .ledgercard.stack colgroup { display: none; }
+.ledgercard.stack tr { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; padding: 6px 4px; }
+.ledgercard.stack td { display: block; border: 0; padding: 2px 6px; }
+.ledgercard.stack td::before { content: attr(data-label); display: block; color: var(--muted); font-size: 11px; }
+.ledgercard.stack td:not([data-label])::before { content: none; }
+.ledgercard.stack td:empty { display: none; }
+.ledgercard.stack td[data-label="날짜"], .ledgercard.stack td[data-label="기준"] { flex: 0 0 auto; font-weight: 600; }
+.ledgercard.stack td[data-label="내용"], .ledgercard.stack td[data-label="환자명·품목"], .ledgercard.stack td[data-label="환자명"],
+.ledgercard.stack td[data-label="외상 내용"], .ledgercard.stack td[data-label="제품명"] { flex: 1 1 40%; min-width: 0; }
+.ledgercard.stack td.num { flex: 1 1 22%; text-align: right; }
+.ledgercard.stack .emptyrow { display: none; }
+.ledgercard.stack .addbar { position: static; grid-template-columns: 1fr 1fr; gap: 8px; border: 1.5px solid var(--brand); border-radius: 10px;
+  box-shadow: none; margin: 8px 0 4px; padding: 10px; }
+.ledgercard.stack .addbar .cell { padding: 0; }
+.ledgercard.stack .addbar .cell::before { content: attr(data-label); display: block; color: var(--muted); font-size: 11px; margin-bottom: 2px; }
+.ledgercard.stack .addbar .cell:nth-child(2), .ledgercard.stack .addbar .cell:last-child { grid-column: 1 / -1; }
+.ledgercard.stack .addbar .cell:last-child::before { content: none; }
+.ledgercard.stack .addbar .cell:last-child .btn { width: 100%; }
+.ledgercard.stack .addbar input[type=text] { min-height: 42px; font-size: 16px; }
+.ledgercard.stack .addfab { display: inline-flex; position: fixed; right: 14px; bottom: 24px; z-index: 25; box-shadow: 0 6px 18px rgba(47, 85, 230, .35); }
+@media (max-width: 900px) { .ledgercard.stack .addfab { bottom: 78px; } }
+.ledgercard.stack .ledger.fixed .amt { width: 124px; }
+.ledgercard.stack .ledger tr.overdue-row { background: var(--danger-bg); }
+.ledgercard.stack .ledger tr.overdue-row td { background: transparent; }
