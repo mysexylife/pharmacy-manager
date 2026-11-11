@@ -3,6 +3,7 @@ import {
 } from './lib.js';
 import { addMonths } from './dates.js';
 import { sheet, cell } from './sheet.js';
+import { created, deleted } from './undo.js';
 
 const HOSPITAL_NAME = '한사랑의원'; // 병원은 한 곳뿐이라 목록 없이 바로 보여 준다
 
@@ -69,7 +70,7 @@ export function hospitalsView() {
         h('td', { class: 'num', 'data-label': '결제액' }, e.paid ? won(e.paid) : ''),
         h('td', { class: `num ${e.balance < 0 ? 'neg' : ''}`, 'data-label': '잔고' }, won(e.balance)),
         h('td', {}, rowMenu(act(async () => {
-          if (confirmDelete(`${formatDate(e.date)} ${e.item}`)) await api('DELETE', `/api/hospital-entries/${e.id}`);
+          if (confirmDelete(`${formatDate(e.date)} ${e.item}`)) await deleted('hospital_entries', e.id, `${formatDate(e.date)} ${e.item}`);
         })))));
     }
     const cells = buildAddRow(d, products);
@@ -136,7 +137,7 @@ export function hospitalsView() {
         const iso = parseDate(date.input.value);
         if (!iso) throw new Error('날짜를 다시 확인하세요 (예: 26.10.31)');
         const x = plan();
-        await api('POST', `/api/hospitals/${d.hospital.id}/entries`, { kind: x.kind, date: iso, item: item.value, ...x.body });
+        await created('hospital_entries', item.value || '결제', api('POST', `/api/hospitals/${d.hospital.id}/entries`, { kind: x.kind, date: iso, item: item.value, ...x.body }));
         lastDate = iso;
         refocus = true;
         await load();

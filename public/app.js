@@ -4,6 +4,7 @@ import { vendorsView } from './vendors.js';
 import { hospitalsView } from './hospitals.js';
 import { creditsView } from './credits.js';
 import { settingsView } from './settings.js';
+import { undoControls, clearUndo } from './undo.js';
 
 const root = document.getElementById('app');
 
@@ -37,6 +38,7 @@ function loginView() {
 
 async function logout() {
   await api('POST', '/api/logout', {}).catch(() => {});
+  clearUndo();
   state.me = null;
   render();
 }
@@ -53,18 +55,24 @@ function shell() {
       h('aside', { class: 'side' },
         h('div', { class: 'brand' }, logo(), h('span', { class: 'brandname' }, '푸른약국')),
         nav,
+        undoControls('side'),
         h('button', { type: 'button', class: 'navlogout', title: '로그아웃', onclick: logout }, icon('logout'), h('span', { class: 'label' }, '로그아웃'))),
       h('div', { class: 'content' },
         h('header', { class: 'topbar' }, h('div', { class: 'brand' }, logo(), h('span', { class: 'brandname' }, '푸른약국')),
-          h('button', { type: 'button', class: 'iconbtn', 'aria-label': '로그아웃', onclick: logout }, icon('logout'))),
+          h('div', { class: 'topright' }, undoControls('top'),
+            h('button', { type: 'button', class: 'iconbtn', 'aria-label': '로그아웃', onclick: logout }, icon('logout')))),
         h('main', {}, current[2]()))),
   ];
 }
 
-function render() {
+function render({ keepScroll = false } = {}) {
+  const y = window.scrollY;
   root.replaceChildren(...(state.me ? shell() : [loginView()]));
-  window.scrollTo(0, 0);
+  window.scrollTo(0, keepScroll ? y : 0);
 }
+
+// 실행 취소 뒤에 지금 보던 화면을 그 자리에서 다시 그린다
+state.reload = () => render({ keepScroll: true });
 
 state.onLogout = () => { state.me = null; render(); };
 

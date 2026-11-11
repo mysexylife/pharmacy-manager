@@ -4,6 +4,7 @@ import {
 } from './lib.js';
 import { addMonths } from './dates.js';
 import { sheet, cell } from './sheet.js';
+import { created, deleted, patched } from './undo.js';
 
 const moneyOf = (text) => {
   const s = String(text ?? '').replace(/[,\s원]/g, '');
@@ -103,7 +104,7 @@ export function vendorsView() {
 
   function processPanel(v, d) {
     const addReturn = foldPair('반품', ({ close }) => h('form', { onsubmit: submit(err, async (fd, form) => {
-      await api('POST', `/api/vendors/${v.id}/returns`, Object.fromEntries(fd));
+      await created('vendor_returns', '반품', api('POST', `/api/vendors/${v.id}/returns`, Object.fromEntries(fd)));
       form.reset();
       close();
       await refresh();
@@ -112,7 +113,7 @@ export function vendorsView() {
       moneyField('반품액(원)', 'amount', { placeholder: '모르면 비워 두기' }),
       h('button', { class: 'btn', type: 'submit' }, '추가'))));
     const addLoan = foldPair('차용', ({ close }) => h('form', { onsubmit: submit(err, async (fd, form) => {
-      await api('POST', `/api/vendors/${v.id}/loans`, Object.fromEntries(fd));
+      await created('vendor_loans', '차용', api('POST', `/api/vendors/${v.id}/loans`, Object.fromEntries(fd)));
       form.reset();
       close();
       await refresh();
@@ -121,7 +122,7 @@ export function vendorsView() {
       moneyField('개수', 'qty', { value: '1' }),
       h('button', { class: 'btn', type: 'submit' }, '추가'))));
     const addNote = foldPair('메모', ({ close }) => h('form', { class: 'row', onsubmit: submit(err, async (fd, form) => {
-      await api('POST', `/api/vendors/${v.id}/notes`, { body: fd.get('body') });
+      await created('vendor_notes', '메모', api('POST', `/api/vendors/${v.id}/notes`, { body: fd.get('body') }));
       form.reset();
       close();
       await refresh();
@@ -130,26 +131,26 @@ export function vendorsView() {
 
     const returns = compactList(d.returns, (r) => r.done, (r) => h('li', { class: r.done ? 'done' : '' },
       h('label', { class: 'check' },
-        h('input', { type: 'checkbox', checked: !!r.done, 'aria-label': `${r.item} 처리 완료`, onchange: act((e) => api('PATCH', `/api/returns/${r.id}`, { done: e.target.checked })) }),
+        h('input', { type: 'checkbox', checked: !!r.done, 'aria-label': `${r.item} 처리 완료`, onchange: act((e) => patched(`/api/returns/${r.id}`, { done: !e.target.checked }, { done: e.target.checked }, `반품 ${r.item} 처리 완료 표시`)) }),
         h('span', { class: 'ptext' }, `${formatDate(r.date)} ${r.item}`, r.done && r.done_date ? h('small', {}, ` · 완료 ${formatDate(r.done_date)}`) : null)),
       r.done
         ? h('b', {}, won(r.amount))
         : h('input', { class: 'amt', type: 'text', inputmode: 'numeric', 'aria-label': `${r.item} 반품액`, value: r.amount || '', placeholder: '반품액',
-          onchange: act((e) => api('PATCH', `/api/returns/${r.id}`, { amount: e.target.value })) }),
-      rowMenu(act(async () => { if (confirmDelete(`반품 ${r.item}`)) await api('DELETE', `/api/returns/${r.id}`); }))), 'returns');
+          onchange: act((e) => patched(`/api/returns/${r.id}`, { amount: r.amount || 0 }, { amount: e.target.value }, `반품 ${r.item} 금액`)) }),
+      rowMenu(act(async () => { if (confirmDelete(`반품 ${r.item}`)) await deleted('vendor_returns', r.id, `반품 ${r.item}`); }))), 'returns');
 
     const loans = compactList(d.loans, (l) => l.returned, (l) => h('li', { class: l.returned ? 'done' : '' },
       h('label', { class: 'check' },
-        h('input', { type: 'checkbox', checked: !!l.returned, 'aria-label': `${l.item} 반환 완료`, onchange: act((e) => api('PATCH', `/api/loans/${l.id}`, { returned: e.target.checked })) }),
+        h('input', { type: 'checkbox', checked: !!l.returned, 'aria-label': `${l.item} 반환 완료`, onchange: act((e) => patched(`/api/loans/${l.id}`, { returned: !e.target.checked }, { returned: e.target.checked }, `차용 ${l.item} 반환 표시`)) }),
         h('span', { class: 'ptext' }, `${formatDate(l.date)} ${l.item}`, l.returned && l.returned_date ? h('small', {}, ` · 반환 ${formatDate(l.returned_date)}`) : null)),
       h('b', {}, `${l.qty}개`),
-      rowMenu(act(async () => { if (confirmDelete(`차용 ${l.item}`)) await api('DELETE', `/api/loans/${l.id}`); }))), 'loans');
+      rowMenu(act(async () => { if (confirmDelete(`차용 ${l.item}`)) await deleted('vendor_loans', l.id, `차용 ${l.item}`); }))), 'loans');
 
     const notes = compactList(d.notes, (n) => n.done, (n) => h('li', { class: n.done ? 'done' : '' },
       h('label', { class: 'check' },
-        h('input', { type: 'checkbox', checked: !!n.done, 'aria-label': `${n.body} 완료`, onchange: act((e) => api('PATCH', `/api/notes/${n.id}`, { done: e.target.checked })) }),
+        h('input', { type: 'checkbox', checked: !!n.done, 'aria-label': `${n.body} 완료`, onchange: act((e) => patched(`/api/notes/${n.id}`, { done: !e.target.checked }, { done: e.target.checked }, '메모 완료 표시'))  }),
         h('span', { class: 'ptext' }, n.body, n.done && n.done_date ? h('small', {}, ` · ${formatDate(n.done_date)}`) : null)),
-      rowMenu(act(async () => { if (confirmDelete('메모')) await api('DELETE', `/api/notes/${n.id}`); }))), 'notes');
+      rowMenu(act(async () => { if (confirmDelete('메모')) await deleted('vendor_notes', n.id, '메모'); }))), 'notes');
 
     return h('div', { class: 'card process' },
       column('반품', '체크 = 처리 완료', addReturn, returns),
@@ -176,7 +177,7 @@ export function vendorsView() {
         h('td', { class: 'num', 'data-label': '결제액' }, e.kind === 'payment' ? won(e.amount) : ''),
         h('td', { class: `num ${e.balance < 0 ? 'neg' : ''}`, 'data-label': '잔고' }, won(e.balance)),
         h('td', {}, !e.return_id && rowMenu(act(async () => {
-          if (confirmDelete(`${formatDate(e.date)} ${e.description || '결제'}`)) await api('DELETE', `/api/entries/${e.id}`);
+          if (confirmDelete(`${formatDate(e.date)} ${e.description || '결제'}`)) await deleted('vendor_entries', e.id, `${formatDate(e.date)} ${e.description || '결제'}`);
         })))));
     }
     const cells = buildAddRow(v, d);
@@ -210,9 +211,9 @@ export function vendorsView() {
         if (!b && !p) throw new Error('입고액이나 결제액을 입력하세요');
         const iso = parseDate(date.input.value);
         if (!iso) throw new Error('날짜를 다시 확인하세요 (예: 26.10.31)');
-        await api('POST', `/api/vendors/${v.id}/entries`, {
+        await created('vendor_entries', `${description.value || (p ? '결제' : '입고')}`, api('POST', `/api/vendors/${v.id}/entries`, {
           kind: p ? 'payment' : (b < 0 ? 'adjust' : 'purchase'), date: iso, description: description.value, amount: p || b,
-        });
+        }));
         lastDate = iso;
         refocus = true;
         await refresh();

@@ -2,6 +2,7 @@ import {
   h, api, won, errorBox, guard, tabs, badge, confirmDelete, formatDate, parseDate, todayKST, toast, telLink, pageHead, searchBox, rowMenu, dateInput,
 } from './lib.js';
 import { sheet, cell } from './sheet.js';
+import { created, deleted, patched } from './undo.js';
 
 const moneyOf = (text) => {
   const s = String(text ?? '').replace(/[,\s원]/g, '');
@@ -64,20 +65,20 @@ export function creditsView() {
       h('td', { class: 'num', 'data-label': '외상액' }, i.paid
         ? won(i.amount)
         : h('input', { class: 'amt', type: 'text', inputmode: 'numeric', 'aria-label': '외상액', value: String(i.amount),
-          onchange: act((e) => api('PATCH', `/api/credits/${i.id}`, { amount: e.target.value }), '외상액을 고쳤어요') })),
+          onchange: act((e) => patched(`/api/credits/${i.id}`, { amount: i.amount }, { amount: e.target.value }, `${i.name} 외상액`), '외상액을 고쳤어요') })),
       paidTab
         ? h('td', { 'data-label': '완불 날짜' }, i.paid_date ? formatDate(i.paid_date) : '')
         : h('td', { 'data-label': '메모장 작성' }, h('label', { class: 'check' },
-          h('input', { type: 'checkbox', checked: !!i.memo_done, 'aria-label': `${i.name} 메모장 작성`, onchange: act((e) => api('PATCH', `/api/credits/${i.id}`, { memo_done: e.target.checked })) }),
+          h('input', { type: 'checkbox', checked: !!i.memo_done, 'aria-label': `${i.name} 메모장 작성`, onchange: act((e) => patched(`/api/credits/${i.id}`, { memo_done: !e.target.checked }, { memo_done: e.target.checked }, `${i.name} 메모장 표시`)) }),
           h('small', { class: 'rowhint' }, 'PM+20 고객 메모장에 기록'))),
       h('td', { 'data-label': '완불' }, h('label', { class: 'check' },
         h('input', { type: 'checkbox', checked: !!i.paid, 'aria-label': `${i.name} 완불`,
-          onchange: act((e) => api('PATCH', `/api/credits/${i.id}`, { paid: e.target.checked }), '완불로 기록했어요 (완불 내역으로 이동)') }),
+          onchange: act((e) => patched(`/api/credits/${i.id}`, { paid: !e.target.checked }, { paid: e.target.checked }, `${i.name} 완불 표시`), '완불로 기록했어요 (완불 내역으로 이동)') }),
         h('small', { class: 'rowhint' }, '메모장에서 지움'))),
       h('td', { 'data-label': '비고' }, h('input', { class: 'note', type: 'text', 'aria-label': '비고', value: i.note, placeholder: '비고',
-        onchange: act((e) => api('PATCH', `/api/credits/${i.id}`, { note: e.target.value })) })),
+        onchange: act((e) => patched(`/api/credits/${i.id}`, { note: i.note }, { note: e.target.value }, `${i.name} 비고`)) })),
       h('td', {}, rowMenu(act(async () => {
-        if (confirmDelete(`${i.name} ${won(i.amount)}원 외상`)) await api('DELETE', `/api/credits/${i.id}`);
+        if (confirmDelete(`${i.name} ${won(i.amount)}원 외상`)) await deleted('credits', i.id, `${i.name} 외상`);
       })))));
     const heads = [['날짜'], ['환자명'], ['주민번호 앞'], ['연락처'], ['외상 내용'], ['외상액', true],
       [paidTab ? '완불 날짜' : '메모장 작성'], ['완불'], ['비고'], ['']];
@@ -109,10 +110,10 @@ export function creditsView() {
         const iso = parseDate(date.input.value);
         if (!iso) throw new Error('날짜를 다시 확인하세요 (예: 26.10.31)');
         moneyOf(amount.value);
-        await api('POST', '/api/credits', {
+        await created('credits', `${name.value} 외상`, api('POST', '/api/credits', {
           date: iso, name: name.value, rrn_front: rrn.value, phone: phone.value, content: content.value,
           amount: amount.value, memo_done: memo.checked, note: note.value,
-        });
+        }));
         lastDate = iso;
         refocus = true;
         toast('외상을 추가했어요');

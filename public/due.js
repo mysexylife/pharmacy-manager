@@ -2,6 +2,7 @@ import {
   h, api, won, errorBox, guard, submit, dateField, moneyField, field, badge, formatDate, todayKST, toast, pageHead,
 } from './lib.js';
 import { addMonths, monthOf } from './dates.js';
+import { created } from './undo.js';
 
 // 이번 달 결제 대상: 거래처별 결제 금액만 보여 주고, 눌러야 자세한 계산이 나온다.
 export function dueView() {
@@ -85,7 +86,7 @@ export function dueView() {
           h('dt', {}, '이후 반품액'), h('dd', {}, `${won(r.returned)}원`),
           h('dt', {}, '현재 잔고'), h('dd', {}, `${won(r.balance)}원`)),
         h('form', { class: 'row', onsubmit: submit(err, async (fd) => {
-          await api('POST', `/api/vendors/${r.id}/entries`, { kind: 'payment', date: fd.get('date'), amount: fd.get('amount'), description: '결제' });
+          await created('vendor_entries', `${r.name} 결제`, api('POST', `/api/vendors/${r.id}/entries`, { kind: 'payment', date: fd.get('date'), amount: fd.get('amount'), description: '결제' }));
           toast('결제를 기록했어요');
           await load();
         }) },

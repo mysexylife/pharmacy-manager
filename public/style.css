@@ -79,7 +79,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 28px 36px 56px; }
 .summary { display: flex; gap: 28px; flex-wrap: wrap; margin: 4px 0 8px; }
 
 table { width: 100%; border-collapse: collapse; font-size: 15px; }
-th { text-align: left; font-size: 13px; color: var(--muted); font-weight: 400; padding: 12px 12px; border-bottom: 1px solid var(--line); }
+th { text-align: center; font-size: 13px; color: var(--muted); font-weight: 400; padding: 12px 12px; border-bottom: 1px solid var(--line); }
 th.num { text-align: right; }
 td { padding: 16px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 tbody tr:last-child td { border-bottom: 0; }
@@ -378,3 +378,32 @@ table.plain td { padding: 12px 8px; }
 .ledgercard.stack .ledger.fixed .amt { width: 124px; }
 .ledgercard.stack .ledger tr.overdue-row { background: var(--danger-bg); }
 .ledgercard.stack .ledger tr.overdue-row td { background: transparent; }
+
+/* 열 제목은 가운데 정렬. 입력 줄은 표와 같은 열 너비를 쓰므로 제목 바로 아래에 맞는다 */
+.ledger th, .ledger th.num { text-align: center; }
+.ledger td.num { text-align: right; }
+.addbar .cell { text-align: center; }
+.addbar input[type=text]::placeholder { text-align: center; }
+.addbar .num input::placeholder { text-align: right; }
+.addbar .datewrap input[type=text]::placeholder { text-align: left; }
+
+/* 실행 취소 / 다시 실행 */
+.undobar { display: flex; gap: 4px; }
+.undobtn { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; color: var(--muted); cursor: pointer;
+  padding: 9px 12px; border-radius: 8px; font: inherit; font-size: 14px; }
+.undobtn:hover:not(:disabled) { background: var(--bg); color: var(--text); }
+.undobtn:disabled { opacity: .35; cursor: default; }
+.undobar.side { flex-direction: column; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); }
+.undobar.side + .navlogout { margin-top: 4px; }
+.undobar.top { display: none; }
+.topright { display: flex; align-items: center; gap: 2px; }
+@media (min-width: 901px) and (max-width: 1500px) {
+  .undobar.side .undobtn { justify-content: center; padding: 12px 0; }
+  .undobar.side .label { display: none; }
+}
+@media (max-width: 900px) {
+  .undobar.side { display: none; }
+  .undobar.top { display: flex; }
+  .undobar.top .label { display: none; }
+  .undobar.top .undobtn { padding: 8px; }
+}
