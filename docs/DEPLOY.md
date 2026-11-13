@@ -44,7 +44,12 @@ fly deploy --ha=false
   fly volumes snapshots list
   ```
 
-## 업데이트
+## 자동 배포 (GitHub Actions)
+`claude/epic-ride-xkr14e` 브랜치에 코드가 올라오면 `.github/workflows/fly-deploy.yml`이 자동으로 시험(`npm test`)을 돌리고, 통과하면 서버에 배포합니다.
+필요한 설정은 GitHub 저장소 Settings > Secrets and variables > Actions 의 `FLY_API_TOKEN` 하나입니다 (`fly tokens create deploy -a 앱이름`으로 만든 토큰).
+실행 결과는 저장소의 Actions 탭에서 볼 수 있습니다.
+
+## 업데이트 (직접 배포할 때)
 코드가 바뀌면 같은 폴더에서 `fly deploy --ha=false` 만 다시 하면 됩니다. 데이터는 볼륨에 그대로 남습니다.
 
 ## 문제가 생기면
