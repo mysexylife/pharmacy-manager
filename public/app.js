@@ -5,6 +5,7 @@ import { hospitalsView } from './hospitals.js';
 import { creditsView } from './credits.js';
 import { settingsView } from './settings.js';
 import { undoControls, clearUndo } from './undo.js';
+import './theme.js';
 
 const root = document.getElementById('app');
 

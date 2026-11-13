@@ -12,6 +12,13 @@
   --radius: 12px; --shadow: 0 1px 2px rgba(20, 30, 60, .05);
   color-scheme: light; /* 기기가 다크 모드여도 항상 밝은 화면 */
 }
+/* 어두운 화면은 설정에서 직접 고를 때만 쓴다. 기본은 항상 밝은 화면 */
+:root[data-theme="dark"] {
+  --bg: #0f1320; --card: #181d2c; --text: #e8ebf4; --muted: #8e97ad; --line: #272e42; --field: #121726;
+  --brand: #7b95ff; --brand-soft: #222b4d; --brand-ink: #0b1020; --ink: #f2f4fa;
+  --danger: #ff8d92; --danger-bg: #3a1f26; --shadow: none;
+  color-scheme: dark;
+}
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text);
   font: 16px/1.5 "Pretendard", system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
