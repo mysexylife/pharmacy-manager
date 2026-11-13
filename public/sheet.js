@@ -43,7 +43,7 @@ export function sheet({ cols, heads, rows, addCells, focusEl, className = '', fi
   const colEls = cols.map(() => h('col'));
   const table = h('table', { class: 'ledger fixed' },
     h('colgroup', {}, colEls),
-    h('thead', {}, h('tr', {}, heads.map(([text, num, left]) => h('th', { class: `${num ? 'num' : ''} ${left ? 'ltext' : ''}` }, text)))),
+    h('thead', {}, h('tr', {}, heads.map(([text, num, left]) => h('th', { class: `${num ? 'num' : ''} ${left ? 'ltext' : ''} ${text === '잔고' ? 'balhead' : ''}` }, text)))),
     h('tbody', {}, rows));
   const card = h('div', { class: `card ledgercard ${className}` }, table);
   // 글자 열(내용·품목 등)은 왼쪽, 나머지는 가운데 정렬. 길어서 잘린 글자는 마우스를 올리면 전체가 보인다.

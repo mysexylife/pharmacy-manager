@@ -498,3 +498,10 @@ tr[hidden] { display: none !important; }
 .ledger.fixed td:last-child { overflow: visible; padding-left: 0; padding-right: 0; }
 .ledger th .hint { white-space: normal; line-height: 1.2; }
 .ledger.fixed td .rowmenu, .ledger.fixed td .kebab { padding: 2px 8px; }
+
+/* 잔고 열은 다른 열보다 눈에 띄게: 굵게 + 조금 크게 */
+.ledger tbody td[data-label="잔고"] { font-weight: 700; font-size: 16px; color: var(--ink); }
+.ledger tbody td.neg[data-label="잔고"] { color: var(--danger); }
+.ledger tr.opening td[data-label="잔고"] { color: var(--muted); font-weight: 600; }
+.ledger th.balhead { color: var(--text); font-weight: 600; font-size: 14px; }
+.ledgercard.stack td[data-label="잔고"] { font-size: 15px; }
