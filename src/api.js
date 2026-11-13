@@ -157,7 +157,7 @@ export function buildRoutes(db, ctx = {}) {
       month, monthEnd, roundUnit: unit, rows: out,
       total: out.reduce((s, r) => s + r.due, 0),
       pending: pendingLists(null),
-      notes: q(`SELECT n.id, n.vendor_id, v.name AS vendor, n.body, n.done, n.done_date, substr(n.created_at, 1, 10) AS date
+      notes: q(`SELECT n.id, n.vendor_id, v.name AS vendor, n.body, n.done, n.done_date, date(n.created_at, '+9 hours') AS date
         FROM vendor_notes n JOIN vendors v ON v.id = n.vendor_id
         WHERE n.done = 0 AND n.deleted_at IS NULL ORDER BY n.id`).all(),
     };
@@ -390,7 +390,7 @@ export function buildRoutes(db, ctx = {}) {
         const loans = q(`SELECT id, date, item, qty, returned, returned_date FROM vendor_loans
           WHERE vendor_id = ? AND deleted_at IS NULL AND (returned = 0 OR COALESCE(returned_date, date) >= ?)
           ORDER BY returned, date DESC, id DESC`).all(v.id, since);
-        const notes = q(`SELECT id, body, done, done_date FROM vendor_notes
+        const notes = q(`SELECT id, body, done, done_date, date(created_at, '+9 hours') AS date FROM vendor_notes
           WHERE vendor_id = ? AND deleted_at IS NULL ORDER BY done, id DESC`).all(v.id);
         return { body: { vendor: v, ...folded, returns, loans, notes } };
       },

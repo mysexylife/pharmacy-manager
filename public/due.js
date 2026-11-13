@@ -113,7 +113,7 @@ export function dueView() {
 
   function noteItem(n) {
     return h('li', {}, h('label', { class: 'check' },
-      h('input', { type: 'checkbox', checked: !!n.done, onchange: patch(`/api/notes/${n.id}`, { done: true }) }), n.body));
+      h('input', { type: 'checkbox', checked: !!n.done, onchange: patch(`/api/notes/${n.id}`, { done: true }) }), `${formatDate(n.date)} ${n.body}`));
   }
 
   load();

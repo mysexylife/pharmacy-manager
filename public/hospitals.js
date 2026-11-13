@@ -75,7 +75,7 @@ export function hospitalsView() {
     }
     const cells = buildAddRow(d, products);
     const card = sheet({
-      cols: ['136px', 'minmax(150px, 1fr)', '58px', '88px', '80px', '88px', '88px', '96px', '44px'],
+      cols: ['136px', 'minmax(130px, 1fr)', '58px', '88px', '80px', '88px', '88px', '96px', '44px'],
       heads: [['날짜'], ['환자명·품목'], ['수량', true], ['원래 금액', true], ['할인액', true], ['외상액', true], ['결제액', true], ['잔고', true], ['']], filterKey: 'hospital',
       rows, addCells: cells, focusEl: refs.item,
     });
@@ -188,7 +188,7 @@ export function hospitalsView() {
         if (confirm(`${p.name}을(를) 단가표에서 뺄까요?`)) await api('DELETE', `/api/hospital-products/${p.id}`);
       })))));
     const card = sheet({
-      cols: ['minmax(120px, 1fr)', '100px', '44px'],
+      cols: ['minmax(100px, 1fr)', '88px', '40px'],
       heads: [['제품명'], ['병원 단가(원)', true], ['']], filterKey: 'prices',
       rows, addCells: [cell('제품명', name), cell('병원 단가', price), h('div', { class: 'cell' }, h('button', { type: 'button', class: 'btn small', onclick: send }, '추가'))],
       focusEl: name, className: 'pricecard',

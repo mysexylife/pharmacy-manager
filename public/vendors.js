@@ -165,7 +165,7 @@ export function vendorsView() {
     const notes = compactList(d.notes, (n) => n.done, (n) => h('li', { class: n.done ? 'done' : '' },
       h('label', { class: 'check' },
         h('input', { type: 'checkbox', checked: !!n.done, 'aria-label': `${n.body} 완료`, onchange: act((e) => patched(`/api/notes/${n.id}`, { done: !e.target.checked }, { done: e.target.checked }, '메모 완료 표시'))  }),
-        h('span', { class: 'ptext' }, n.body, n.done && n.done_date ? h('small', {}, ` · ${formatDate(n.done_date)}`) : null)),
+        h('span', { class: 'ptext' }, `${formatDate(n.date)} ${n.body}`, n.done && n.done_date ? h('small', {}, ` · ${formatDate(n.done_date)}`) : null)),
       rowMenu(act(async () => { if (confirmDelete('메모')) await deleted('vendor_notes', n.id, '메모'); }))), 'notes');
 
     return h('div', { class: 'card process' },

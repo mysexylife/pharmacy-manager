@@ -273,7 +273,7 @@ a.tel { white-space: nowrap; }
   nav.tabs button, .navlogout { justify-content: center; padding: 12px 0; }
 }
 /* ---- 병원 외상: 왼쪽 내역표 + 오른쪽 품목 단가표, 환자 외상: 이름 누르면 전체 목록 ---- */
-.hospgrid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.hospgrid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; align-items: start; }
 .hospgrid > * { min-width: 0; }
 .hospbar { grid-column: 1 / -1; margin-bottom: 0; }
 .earlier { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 8px 2px; }
@@ -290,7 +290,7 @@ dialog.history { width: min(780px, 94vw); max-height: 86vh; overflow: auto; bord
   background: var(--card); color: var(--text); font: inherit; box-shadow: 0 24px 64px rgba(20, 30, 60, .3); }
 dialog.history::backdrop { background: rgba(15, 19, 32, .45); }
 table.plain td { padding: 12px 8px; }
-@media (max-width: 1700px) {
+@media (max-width: 1259px) {
   .hospgrid { grid-template-columns: 1fr; }
 }
 
