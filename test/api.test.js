@@ -234,6 +234,13 @@ test('제약회사마다 회전 개월 수가 다르고, 결제 금액은 10만�
   assert.equal((await ok('GET', '/api/vendors')).find((x) => x.id === v).rotation_months, 5);
 });
 
+test('제약회사 목록은 가나다순', async () => {
+  for (const name of ['하정렬', '가정렬', '나정렬']) await ok('POST', '/api/vendors', { name }, 201);
+  const pick = (list) => list.map((x) => x.name).filter((n) => ['하정렬', '가정렬', '나정렬'].includes(n));
+  assert.deepEqual(pick(await ok('GET', '/api/vendors')), ['가정렬', '나정렬', '하정렬']);
+  assert.deepEqual(pick((await ok('GET', '/api/due')).rows), ['가정렬', '나정렬', '하정렬']);
+});
+
 // ---------------------------------------------------------------- 병원 외상
 test('병원 단가표는 이름순(가나다)으로 나온다', async () => {
   for (const name of ['타이레놀', '가스활명수', '나오덤']) await ok('POST', '/api/hospital-products', { name, price: 1000 }, 201);

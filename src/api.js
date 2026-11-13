@@ -141,7 +141,7 @@ export function buildRoutes(db, ctx = {}) {
         COALESCE(SUM(${VENDOR_DELTA}), 0) AS balance
       FROM vendor_entries e WHERE e.vendor_id = :vid AND e.deleted_at IS NULL`);
     const counts = pendingCounts();
-    const out = q('SELECT id, name, rotation_months FROM vendors WHERE active = 1 ORDER BY sort, name').all().map((v) => {
+    const out = q('SELECT id, name, rotation_months FROM vendors WHERE active = 1 ORDER BY name').all().map((v) => {
       const cutoff = endOfMonth(addMonths(monthStart, -v.rotation_months));
       const r = agg.get({ vid: v.id, cutoff, end: monthEnd });
       const dueExact = Math.max(0, r.pool - r.paid - r.returned);
@@ -336,7 +336,7 @@ export function buildRoutes(db, ctx = {}) {
           FROM vendors v
           LEFT JOIN (SELECT vendor_id, ${VENDOR_DELTA} AS delta FROM vendor_entries WHERE deleted_at IS NULL) e
             ON e.vendor_id = v.id
-          GROUP BY v.id ORDER BY v.active DESC, v.sort, v.name`).all();
+          GROUP BY v.id ORDER BY v.active DESC, v.name`).all();
         return {
           body: rows.map((r) => ({
             ...r,
