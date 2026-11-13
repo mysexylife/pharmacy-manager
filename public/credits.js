@@ -52,7 +52,7 @@ export function creditsView() {
     }));
   }
 
-  const COLS = ['124px', '88px', '76px', '118px', 'minmax(100px, 1fr)', '90px', '104px', '92px', '96px', '44px'];
+  const COLS = ['140px', 'minmax(84px, 0.9fr)', '92px', '116px', 'minmax(90px, 1.2fr)', 'minmax(84px, 0.9fr)', '104px', '76px', 'minmax(90px, 1.2fr)', '44px'];
 
   function table(items) {
     const paidTab = tab === 'paid';
@@ -80,8 +80,8 @@ export function creditsView() {
       h('td', {}, rowMenu(act(async () => {
         if (confirmDelete(`${i.name} ${won(i.amount)}원 외상`)) await deleted('credits', i.id, `${i.name} 외상`);
       })))));
-    const heads = [['날짜'], ['환자명'], ['주민번호 앞'], ['연락처'], ['외상 내용'], ['외상액', true],
-      [paidTab ? '완불 날짜' : '메모장 작성'], ['완불'], ['비고'], ['']];
+    const heads = [['날짜'], ['환자명'], ['주민번호 앞'], ['연락처'], ['외상 내용', false, true], ['외상액', true],
+      [paidTab ? '완불 날짜' : '메모장 작성'], ['완불'], ['비고', false, true], ['']];
     const card = sheet({
       cols: COLS, heads, rows, addCells: paidTab ? null : buildAddRow(), focusEl: refs.name, className: 'creditsheet', filterKey: `credits-${tab}`,
     });

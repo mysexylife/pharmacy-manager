@@ -458,3 +458,42 @@ tr[hidden] { display: none !important; }
 
 /* 틀 고정: 표를 아래로 내려도 열 제목이 위에 계속 보인다 (위쪽 제목 막대가 있으면 그 아래에 붙는다) */
 .ledger thead th { position: sticky; top: var(--thead-top, 0px); z-index: 4; background: var(--card); box-shadow: 0 1px 0 var(--line); }
+
+/* ===== 장부 표 정리: 글자 열은 왼쪽, 나머지는 가운데. 한 줄로 두고 길면 ...으로 줄임. 여백은 촘촘하게 ===== */
+.ledger th, .ledger td { text-align: center; }
+.ledger th.ltext, .ledger td.ltext { text-align: left; }
+.ledger th { padding: 9px 6px; }
+.ledger tbody td { padding: 7px 6px; }
+.ledger.fixed td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ledger td:nth-child(2) { min-width: 0; }
+.ledger.fixed td.num { text-align: center; }
+.ledger.fixed td input.amt { width: 100%; text-align: center; min-height: 30px; padding: 2px 6px; font-size: 14px; }
+.ledger.fixed td input.note { width: 100%; min-width: 0; min-height: 30px; padding: 2px 6px; font-size: 14px; text-align: left; }
+.ledger.fixed td .check { padding: 0; }
+.ledger.fixed td .check .rowhint { display: none; }
+.ledger.fixed td .namebtn { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 입력 줄: 칸 사이 간격과 안쪽 여백을 줄이고, 안내 문구가 보이도록 칸 폭을 열 너비에 맞춘다 */
+.addbar { padding: 4px 8px; }
+.addbar .cell { padding: 0 3px; text-align: center; }
+.addbar .cell.ltext { text-align: left; }
+.addbar input[type=text] { min-height: 32px; padding: 2px 6px; font-size: 14px; text-align: center; }
+.addbar .cell.ltext input[type=text] { text-align: left; }
+.addbar .num input, .addbar .num input::placeholder { text-align: center; }
+.addbar .datewrap { gap: 0; }
+.addbar .datewrap input[type=text] { text-align: left; padding: 2px 4px; }
+.addbar .btn.small { padding: 3px 8px; min-height: 32px; }
+.addbar .cell.dim { font-size: 11px; text-align: center; }
+
+/* 카드형(폰·좁은 화면)에서는 줄바꿈을 허용 */
+.ledgercard.stack .ledger.fixed td { white-space: normal; overflow: visible; text-overflow: clip; }
+.ledgercard.stack td, .ledgercard.stack th { text-align: left; }
+.ledgercard.stack td.num { text-align: right; }
+.ledgercard.stack .addbar { padding: 10px; }
+.ledgercard.stack .addbar .cell { padding: 0; }
+.ledgercard.stack .addbar input[type=text] { text-align: left; }
+.ledgercard.stack .ledger.fixed td input.amt { text-align: right; }
+/* 마지막 칸(줄 메뉴 ⋯)은 잘리지 않고, 메뉴가 표 밖으로 펼쳐질 수 있어야 한다 */
+.ledger.fixed td:last-child { overflow: visible; padding-left: 0; padding-right: 0; }
+.ledger th .hint { white-space: normal; line-height: 1.2; }
+.ledger.fixed td .rowmenu, .ledger.fixed td .kebab { padding: 2px 8px; }

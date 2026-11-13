@@ -198,8 +198,8 @@ export function vendorsView() {
     }
     const cells = buildAddRow(v, d);
     return sheet({
-      cols: ['136px', 'minmax(150px, 1fr)', '100px', '88px', '100px', '108px', '44px'],
-      heads: [['날짜'], ['내용'], ['입고액', true], ['반품액', true], ['결제액', true], ['잔고', true], ['']], filterKey: `vendor-${v.id}`,
+      cols: ['120px', 'minmax(130px, 1.6fr)', 'minmax(92px, 1fr)', 'minmax(80px, 0.8fr)', 'minmax(92px, 1fr)', 'minmax(100px, 1.1fr)', '44px'],
+      heads: [['날짜'], ['내용', false, true], ['입고액', true], ['반품액', true], ['결제액', true], ['잔고', true], ['']], filterKey: `vendor-${v.id}`,
       rows, addCells: cells, focusEl: refs.description,
     });
   }

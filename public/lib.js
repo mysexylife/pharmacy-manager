@@ -91,6 +91,13 @@ export function field(label, name, opts = {}) {
 export const moneyField = (label, name, opts = {}) => field(label, name, { inputmode: 'numeric', cls: 'narrow', ...opts });
 
 // 날짜 칸: 어떻게 쓰든 26.10.31 형식으로 바뀐다. 달력으로도 고를 수 있다.
+// 날짜 칸에 커서가 들어가면 안의 글자를 모두 선택해서, 지우지 않고 바로 새 날짜를 쓸 수 있게 한다
+function selectOnFocus(input) {
+  let fresh = false;
+  input.addEventListener('focus', () => { fresh = true; input.select(); });
+  input.addEventListener('mouseup', (e) => { if (fresh) { e.preventDefault(); fresh = false; } });
+}
+
 export function dateField(label, name = 'date', { value = todayKST(), cls = 'narrow' } = {}) {
   const input = h('input', { name, type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder: '26.10.31', required: true });
   input.defaultValue = formatDate(value);
@@ -99,6 +106,7 @@ export function dateField(label, name = 'date', { value = todayKST(), cls = 'nar
   picker.addEventListener('change', () => {
     if (picker.value) { input.value = formatDate(picker.value); input.setCustomValidity(''); input.focus(); }
   });
+  selectOnFocus(input);
   input.addEventListener('input', () => input.setCustomValidity(''));
   input.addEventListener('blur', () => {
     const iso = parseDate(input.value);
@@ -226,6 +234,7 @@ export function dateInput(name, value = todayKST()) {
   input.value = formatDate(value);
   const picker = h('input', { type: 'date', class: 'datepick', tabindex: '-1', 'aria-hidden': 'true' });
   picker.addEventListener('change', () => { if (picker.value) { input.value = formatDate(picker.value); input.setCustomValidity(''); input.focus(); } });
+  selectOnFocus(input);
   input.addEventListener('input', () => input.setCustomValidity(''));
   input.addEventListener('blur', () => {
     const iso = parseDate(input.value);

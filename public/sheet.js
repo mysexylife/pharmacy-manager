@@ -10,29 +10,65 @@ import { attachFilters } from './filter.js';
 //   focusEl   "+ 행 추가" 버튼을 누르면 커서가 갈 곳 (폰)
 export const cell = (label, ...kids) => h('div', { class: 'cell', 'data-label': label }, ...kids);
 
+// 열 너비: '120px'(고정) 또는 'minmax(최소px, 비율fr)'(남는 폭을 비율대로 나눔, 최소 폭 아래로는 줄지 않음)
+function parseCols(cols) {
+  return cols.map((w) => {
+    const px = /^(\d+)px$/.exec(w);
+    if (px) return { fixed: Number(px[1]) };
+    const m = /^minmax\((\d+)px,\s*([\d.]+)fr\)$/.exec(w);
+    return m ? { min: Number(m[1]), weight: Number(m[2]) } : { min: 0, weight: 1 };
+  });
+}
+
+// 전체 폭을 고정 열 + 비율 열로 나눈 px 너비 목록
+function widthsFor(specs, total) {
+  const widths = specs.map((c) => c.fixed ?? c.min);
+  let free = total - specs.reduce((n, c) => n + (c.fixed ?? 0), 0);
+  let flex = specs.map((c, i) => (c.fixed == null ? i : -1)).filter((i) => i >= 0);
+  for (let round = 0; round < specs.length && flex.length; round++) {
+    const weightSum = flex.reduce((n, i) => n + specs[i].weight, 0);
+    const tooSmall = flex.filter((i) => (free * specs[i].weight) / weightSum < specs[i].min);
+    if (!tooSmall.length) {
+      for (const i of flex) widths[i] = Math.floor((free * specs[i].weight) / weightSum);
+      break;
+    }
+    for (const i of tooSmall) { widths[i] = specs[i].min; free -= specs[i].min; }
+    flex = flex.filter((i) => !tooSmall.includes(i));
+  }
+  return widths;
+}
+
 export function sheet({ cols, heads, rows, addCells, focusEl, className = '', filterKey = null }) {
-  const colgroup = h('colgroup', {}, cols.map((w) => {
-    const col = h('col');
-    if (!w.startsWith('minmax')) col.style.width = w;
-    return col;
-  }));
+  const specs = parseCols(cols);
+  const colEls = cols.map(() => h('col'));
   const table = h('table', { class: 'ledger fixed' },
-    colgroup,
-    h('thead', {}, h('tr', {}, heads.map(([text, num]) => h('th', { class: num ? 'num' : '' }, text)))),
+    h('colgroup', {}, colEls),
+    h('thead', {}, h('tr', {}, heads.map(([text, num, left]) => h('th', { class: `${num ? 'num' : ''} ${left ? 'ltext' : ''}` }, text)))),
     h('tbody', {}, rows));
   const card = h('div', { class: `card ledgercard ${className}` }, table);
+  // 글자 열(내용·품목 등)은 왼쪽, 나머지는 가운데 정렬. 길어서 잘린 글자는 마우스를 올리면 전체가 보인다.
+  const leftCols = new Set(heads.map((hd, i) => (hd[2] ? i : -1)).filter((i) => i >= 0));
+  for (const tr of table.tBodies[0].rows) {
+    [...tr.cells].forEach((td, i) => {
+      if (leftCols.has(i)) td.classList.add('ltext');
+      if (!td.title && td.textContent.trim().length > 12) td.title = td.textContent.trim();
+    });
+  }
   // 카드 폭이 열들이 들어갈 최소 폭보다 좁아지면 "카드형"(폰 모양)으로 바꾼다. 창 크기가 아니라 실제 표 폭을 기준으로 한다.
-  const minWidth = cols.reduce((n, w) => n + Number(/^(?:minmax\()?(\d+)px/.exec(w)?.[1] ?? 0), 0) + 24;
+  const minWidth = specs.reduce((n, c) => n + (c.fixed ?? c.min), 0) + 24;
   let bar = null;
   const fit = () => {
     const stacked = card.clientWidth > 0 && card.clientWidth < minWidth;
     card.classList.toggle('stack', stacked);
-    if (bar) bar.style.gridTemplateColumns = stacked ? '' : cols.join(' ');
+    if (stacked || !card.clientWidth) { if (bar) bar.style.gridTemplateColumns = ''; return; }
+    const widths = widthsFor(specs, card.clientWidth - 16);
+    widths.forEach((w, i) => { colEls[i].style.width = `${w}px`; });
+    if (bar) bar.style.gridTemplateColumns = widths.map((w) => `${w}px`).join(' ');
   };
   new ResizeObserver(fit).observe(card);
   if (addCells) {
     bar = h('div', { class: 'addbar' }, addCells);
-    bar.style.gridTemplateColumns = cols.join(' ');
+    addCells.forEach((c, i) => { if (leftCols.has(i)) c.classList.add('ltext'); });
     card.append(bar, h('button', { type: 'button', class: 'btn addfab', onclick: () => {
       bar.scrollIntoView({ block: 'center', behavior: 'smooth' });
       focusEl?.focus({ preventScroll: true });
