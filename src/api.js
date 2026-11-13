@@ -157,7 +157,7 @@ export function buildRoutes(db, ctx = {}) {
       month, monthEnd, roundUnit: unit, rows: out,
       total: out.reduce((s, r) => s + r.due, 0),
       pending: pendingLists(null),
-      notes: q(`SELECT n.id, n.vendor_id, v.name AS vendor, n.body, n.done, n.done_date
+      notes: q(`SELECT n.id, n.vendor_id, v.name AS vendor, n.body, n.done, n.done_date, substr(n.created_at, 1, 10) AS date
         FROM vendor_notes n JOIN vendors v ON v.id = n.vendor_id
         WHERE n.done = 0 AND n.deleted_at IS NULL ORDER BY n.id`).all(),
     };

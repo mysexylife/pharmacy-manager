@@ -24,7 +24,7 @@ export function dueView() {
 
   function render(d) {
     const shift = (n) => { month = monthOf(addMonths(`${month}-01`, n)); load(); };
-    const pending = d.pending.returns.length + d.pending.loans.length;
+    const pending = d.pending.returns.length + d.pending.loans.length + d.notes.length;
     const monthNav = h('div', { class: 'monthnav' },
       h('button', { type: 'button', 'aria-label': '이전 달', onclick: () => shift(-1) }, '‹'),
       h('strong', {}, `${month.slice(2).replace('-', '.')}`),
@@ -33,7 +33,7 @@ export function dueView() {
       pageHead('결제 대상', monthNav),
       h('div', { class: 'stats' },
         h('div', { class: 'stat' }, h('span', {}, '결제할 금액 합계'), h('b', {}, `${won(d.total)}원`)),
-        h('div', { class: 'stat' }, h('span', {}, '처리 중인 반품·차용'), h('b', {}, `${pending}건`)),
+        h('div', { class: 'stat' }, h('span', {}, '처리 중인 반품·차용·메모'), h('b', {}, `${pending}건`)),
         h('div', { class: 'stat' }, h('span', {}, '결제 금액 계산'), h('b', {}, d.roundUnit > 1 ? `${won(d.roundUnit)}원 단위 내림` : '내림 없음'),
           h('small', { class: 'hint' }, '회전 개월 수는 제약회사마다 다르게 설정'))),
       pendingCard(d),
@@ -45,22 +45,24 @@ export function dueView() {
   // 모든 제약회사의 처리 중인 반품과 반환 안 된 차용을 한 목록으로 모은다.
   function pendingCard(d) {
     const { returns, loans } = d.pending;
-    if (!returns.length && !loans.length) {
+    const memos = d.notes;
+    if (!returns.length && !loans.length && !memos.length) {
       return null; // 처리 중인 것이 없으면 아무것도 보여 주지 않는다
     }
     const rows = [
       ...returns.map((r) => ({ ...r, kind: '반품', detail: r.amount ? `${won(r.amount)}원` : '금액 미입력', check: '처리 완료', path: `/api/returns/${r.id}`, data: { done: true } })),
       ...loans.map((l) => ({ ...l, kind: '차용', detail: `${l.qty}개`, check: '반환 완료', path: `/api/loans/${l.id}`, data: { returned: true } })),
+      ...memos.map((n) => ({ ...n, kind: '메모', item: n.body, detail: '', check: '확인 완료', path: `/api/notes/${n.id}`, data: { done: true } })),
     ];
     return h('div', { class: 'card pending' },
       h('h2', {}, `처리 중 ${rows.length}건`),
       h('table', {},
-        h('thead', {}, h('tr', {}, ['제약회사', '구분', '날짜', '품목', '금액·개수', ''].map((t) => h('th', {}, t)))),
+        h('thead', {}, h('tr', {}, ['제약회사', '구분', '날짜', '품목·내용', '금액·개수', ''].map((t) => h('th', {}, t)))),
         h('tbody', {}, rows.map((r) => h('tr', {},
           h('td', { 'data-label': '제약회사' }, r.vendor),
-          h('td', { 'data-label': '구분' }, badge(r.kind, r.kind === '반품' ? 'warn' : 'info')),
+          h('td', { 'data-label': '구분' }, badge(r.kind, r.kind === '반품' ? 'warn' : r.kind === '메모' ? '' : 'info')),
           h('td', { 'data-label': '날짜' }, formatDate(r.date)),
-          h('td', { 'data-label': '품목' }, r.item),
+          h('td', { 'data-label': '품목·내용' }, r.item),
           h('td', { class: 'num', 'data-label': '금액·개수' }, r.detail),
           h('td', {}, h('label', { class: 'check' },
             h('input', { type: 'checkbox', onchange: patch(r.path, r.data, `${r.check}로 기록했어요`) }), r.check)))))));

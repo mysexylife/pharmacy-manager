@@ -50,7 +50,8 @@ export function vendorsView() {
         h('button', { type: 'button', class: v.active ? '' : 'inactive', 'aria-current': String(v.id === selected), onclick: () => { selected = v.id; state.vendorId = v.id; listBox.classList.remove('open'); refresh(); } },
           h('span', { class: 'pname' }, v.name + (v.active ? '' : ' (사용 안 함)'),
             v.pendingReturns > 0 && badge(`반품 ${v.pendingReturns}`, 'warn'),
-            v.openLoans > 0 && badge(`차용 ${v.openLoans}`, 'info')),
+            v.openLoans > 0 && badge(`차용 ${v.openLoans}`, 'info'),
+            v.openNotes > 0 && badge(`메모 ${v.openNotes}`)),
           h('span', { class: `num ${v.balance < 0 ? 'neg' : ''}` }, won(v.balance)))))),
       collapsible('제약회사 추가', ({ close }) => h('form', { class: 'row', onsubmit: submit(err, async (fd, form) => {
         const created = await api('POST', '/api/vendors', { name: fd.get('name') });

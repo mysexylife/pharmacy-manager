@@ -186,6 +186,7 @@ test('확인 메모는 장부와 결제 대상 화면에서 같은 데이터로 
   const v = (await ok('POST', '/api/vendors', { name: '메모제약' }, 201)).id;
   const note = (await ok('POST', `/api/vendors/${v}/notes`, { body: '제약사 잔고와 대조' }, 201)).id;
   assert.equal((await ok('GET', '/api/due')).notes.some((n) => n.id === note), true);
+  assert.match((await ok('GET', '/api/due')).notes.find((n) => n.id === note).date, /^\d{4}-\d\d-\d\d$/);
   await ok('PATCH', `/api/notes/${note}`, { done: true });
   assert.equal((await ok('GET', '/api/due')).notes.some((n) => n.id === note), false);
   assert.equal((await ok('GET', `/api/vendors/${v}/ledger`)).notes[0].done, 1);
