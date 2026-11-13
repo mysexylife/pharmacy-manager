@@ -20,7 +20,7 @@ export function vendorsView() {
   const listBox = h('div', { class: 'card listbox' });
   const detail = h('div');
   let selected = state.vendorId ?? null;
-  let months = 6; // 6 = 최근 6개월, 0 = 전체
+  let months = 6; // 6 = 최근 6개월, 12·24·… = 최근 N년간, 0 = 전체 기간
   let vq = '';
   let lastDate = todayKST(); // 입력 행의 날짜는 마지막으로 쓴 날짜를 이어 간다 (같은 날 여러 건을 입력할 때 편하다)
   let refocus = false;
@@ -80,12 +80,24 @@ export function vendorsView() {
     const bar = h('div', { class: 'stickybar' },
       h('strong', {}, v.name),
       h('div', { class: 'barright' },
-        tabs('기간', [[6, '최근 6개월'], [0, '전체']], months, (m) => { months = m; refresh(); }),
+        periodPicker(),
         h('label', { class: 'rot', title: '이 제약회사는 몇 개월 전 월말 잔고를 기준으로 결제하는지' }, '결제 회전 ',
           h('input', { type: 'text', inputmode: 'numeric', value: String(v.rotation_months ?? 6), 'aria-label': '결제 회전 개월 수',
             onchange: guard(err, async (e) => { await api('PATCH', `/api/vendors/${v.id}`, { rotation_months: e.target.value }); toast('회전 개월 수를 바꿨어요'); await refresh(); }) }), '개월'),
         h('span', {}, '현재 잔고 ', h('b', { class: d.balance < 0 ? 'neg' : '' }, `${won(d.balance)}원`))));
     return [bar, processPanel(v, d), ledgerCard(v, d)];
+  }
+
+  // 기간: "최근 6개월" 또는 "최근 N년간"(N은 드롭다운에서 고른다)
+  function periodPicker() {
+    const isYears = months === 0 || months % 12 === 0;
+    const select = h('select', { 'aria-label': '최근 몇 년간 볼지 고르기', onchange: (e) => { months = Number(e.target.value); refresh(); } },
+      h('option', { value: '', disabled: true, selected: !isYears }, '최근 N년간'),
+      Array.from({ length: 10 }, (_, i) => h('option', { value: String((i + 1) * 12), selected: months === (i + 1) * 12 }, `최근 ${i + 1}년간`)),
+      h('option', { value: '0', selected: months === 0 }, '전체 기간'));
+    return h('div', { class: 'tabstrip periodpick', role: 'tablist', 'aria-label': '기간' },
+      h('button', { type: 'button', role: 'tab', 'aria-selected': String(months === 6), onclick: () => { months = 6; refresh(); } }, '최근 6개월'),
+      h('span', { class: 'yearsel', role: 'tab', 'aria-selected': String(isYears) }, select));
   }
 
   // ---- 반품 · 차용 · 확인 메모: 내역표 위에 작게 ---------------------------------

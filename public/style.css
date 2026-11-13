@@ -449,3 +449,9 @@ tr[hidden] { display: none !important; }
 .searchbox.small .icon svg { width: 16px; height: 16px; }
 .searchbox.small { min-width: 0; width: 100%; }
 .filterstatus[hidden] { display: none; }
+
+/* 기간: 최근 6개월 | 최근 N년간(드롭다운) */
+.periodpick .yearsel { display: inline-flex; align-items: center; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.periodpick .yearsel[aria-selected="true"] { border-color: var(--brand); }
+.periodpick select { border: 0; background: none; font-size: 14px; padding: 4px 2px; min-height: 0; cursor: pointer; color: var(--text); }
+.periodpick .yearsel[aria-selected="true"] select { color: var(--brand); font-weight: 600; }
