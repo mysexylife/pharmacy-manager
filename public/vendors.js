@@ -18,9 +18,6 @@ const moneyOf = (text) => {
 export function vendorsView() {
   const err = errorBox();
   const listBox = h('div', { class: 'card listbox' });
-  // 검색 칸은 제약회사 목록 안에 작게 붙인다 (목록을 다시 그려도 같은 칸을 계속 쓴다)
-  const search = searchBox('제약회사 검색', (v) => { vq = v.trim(); applyFilter(); });
-  search.classList.add('small');
   const detail = h('div');
   let selected = state.vendorId ?? null;
   let months = 6; // 6 = 최근 6개월, 0 = 전체
@@ -49,7 +46,6 @@ export function vendorsView() {
         current ? `${current.name} · 제약회사 바꾸기` : '제약회사 고르기'),
       h('h2', {}, '제약회사'),
       h('p', { class: 'muted' }, `전체 잔고 ${won(vendors.reduce((s, v) => s + (v.active ? v.balance : 0), 0))}원`),
-      search,
       h('ul', { class: 'partylist' }, vendors.map((v) => h('li', {},
         h('button', { type: 'button', class: v.active ? '' : 'inactive', 'aria-current': String(v.id === selected), onclick: () => { selected = v.id; state.vendorId = v.id; listBox.classList.remove('open'); refresh(); } },
           h('span', { class: 'pname' }, v.name + (v.active ? '' : ' (사용 안 함)'),
@@ -246,6 +242,6 @@ export function vendorsView() {
 
   refresh();
   return h('div', {},
-    pageHead('제약회사 장부'),
+    pageHead('제약회사 장부', searchBox('제약회사 검색', (v) => { vq = v.trim(); applyFilter(); })),
     h('div', { class: 'split' }, listBox, h('div', {}, err, detail)));
 }
