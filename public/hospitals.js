@@ -134,7 +134,7 @@ export function hospitalsView() {
     };
     const send = guard(err, async () => {
       try {
-        const iso = parseDate(date.input.value);
+        const iso = date.value();
         if (!iso) throw new Error('날짜를 다시 확인하세요 (예: 26.10.31)');
         const x = plan();
         await created('hospital_entries', item.value || '결제', api('POST', `/api/hospitals/${d.hospital.id}/entries`, { kind: x.kind, date: iso, item: item.value, ...x.body }));

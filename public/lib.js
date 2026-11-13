@@ -229,13 +229,14 @@ function openPicker(picker) {
 }
 
 // 표 한 칸에 들어가는 작은 날짜 입력: 어떻게 쓰든 26.10.31 형식으로 바뀌고, 달력으로도 고를 수 있다.
+// 장부 입력 줄의 날짜 칸: 칸은 비어 있고, 쓸 날짜가 안내 글자로 흐리게 보인다.
+// 비워 두면 그 날짜(처음엔 오늘, 같은 날짜를 이어서 입력 중이면 그 날짜)로 들어가고, 다른 날짜는 바로 쓰면 된다.
 export function dateInput(name, value = todayKST()) {
-  const input = h('input', { name, type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder: '26.10.31', 'aria-label': '날짜' });
-  input.defaultValue = formatDate(value);
-  input.value = formatDate(value);
+  const input = h('input', { name, type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder: formatDate(value),
+    'aria-label': `날짜 (비워 두면 ${formatDate(value)})`, title: `비워 두면 ${formatDate(value)}로 입력됩니다` });
+  input.classList.toggle('carried', value !== todayKST()); // 오늘이 아닌 날짜를 이어 쓰는 중이면 안내 글자를 강조
   const picker = h('input', { type: 'date', class: 'datepick', tabindex: '-1', 'aria-hidden': 'true' });
   picker.addEventListener('change', () => { if (picker.value) { input.value = formatDate(picker.value); input.setCustomValidity(''); input.focus(); } });
-  selectOnFocus(input);
   input.addEventListener('input', () => input.setCustomValidity(''));
   input.addEventListener('blur', () => {
     const iso = parseDate(input.value);
@@ -243,5 +244,6 @@ export function dateInput(name, value = todayKST()) {
     else if (input.value.trim()) input.setCustomValidity('날짜를 다시 확인하세요 (예: 26.10.31)');
   });
   const cal = h('button', { type: 'button', class: 'iconbtn small', tabindex: '-1', 'aria-label': '달력으로 고르기', onclick: () => openPicker(picker) }, icon('calendar'));
-  return { input, node: h('span', { class: 'datewrap cell' }, input, cal, picker) };
+  // 입력한 날짜(iso). 비어 있으면 안내 글자의 날짜. 알아볼 수 없으면 null
+  return { input, node: h('span', { class: 'datewrap cell' }, input, cal, picker), value: () => (input.value.trim() ? parseDate(input.value) : value) };
 }

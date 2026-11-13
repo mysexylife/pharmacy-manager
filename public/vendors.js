@@ -225,7 +225,7 @@ export function vendorsView() {
         const p = moneyOf(paid.value);
         if (b && p) throw new Error('입고액과 결제액 중 하나만 입력하세요');
         if (!b && !p) throw new Error('입고액이나 결제액을 입력하세요');
-        const iso = parseDate(date.input.value);
+        const iso = date.value();
         if (!iso) throw new Error('날짜를 다시 확인하세요 (예: 26.10.31)');
         await created('vendor_entries', `${description.value || (p ? '결제' : '입고')}`, api('POST', `/api/vendors/${v.id}/entries`, {
           kind: p ? 'payment' : (b < 0 ? 'adjust' : 'purchase'), date: iso, description: description.value, amount: p || b,

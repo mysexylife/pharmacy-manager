@@ -107,7 +107,7 @@ export function creditsView() {
     refs = { name };
     const send = guard(err, async () => {
       try {
-        const iso = parseDate(date.input.value);
+        const iso = date.value();
         if (!iso) throw new Error('날짜를 다시 확인하세요 (예: 26.10.31)');
         moneyOf(amount.value);
         await created('credits', `${name.value} 외상`, api('POST', '/api/credits', {

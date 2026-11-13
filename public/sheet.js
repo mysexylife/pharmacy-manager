@@ -69,6 +69,22 @@ export function sheet({ cols, heads, rows, addCells, focusEl, className = '', fi
   if (addCells) {
     bar = h('div', { class: 'addbar' }, addCells);
     addCells.forEach((c, i) => { if (leftCols.has(i)) c.classList.add('ltext'); });
+    // 엑셀처럼 방향키(← →)로 칸 이동: 글자 맨 앞/맨 뒤에서 누르면 옆 칸으로 가고, 칸에 들어가면 글자가 전체 선택된다.
+    bar.addEventListener('keydown', (e) => {
+      if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+      const el = e.target;
+      if (el.tagName !== 'INPUT') return;
+      const isText = el.type === 'text';
+      if (isText && (el.selectionStart !== el.selectionEnd
+        || (e.key === 'ArrowLeft' && el.selectionStart > 0)
+        || (e.key === 'ArrowRight' && el.selectionEnd < el.value.length))) return; // 글자 사이에서는 커서 이동
+      const fields = [...bar.querySelectorAll('input')].filter((x) => x.type !== 'date' && x.type !== 'hidden' && x.tabIndex >= 0 && !x.disabled);
+      const next = fields[fields.indexOf(el) + (e.key === 'ArrowRight' ? 1 : -1)];
+      if (!next) return;
+      e.preventDefault();
+      next.focus();
+      if (next.type === 'text') next.select();
+    });
     card.append(bar, h('button', { type: 'button', class: 'btn addfab', onclick: () => {
       bar.scrollIntoView({ block: 'center', behavior: 'smooth' });
       focusEl?.focus({ preventScroll: true });
