@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS vendors (
   id INTEGER PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
   sort INTEGER NOT NULL DEFAULT 0,
-  active INTEGER NOT NULL DEFAULT 1
+  active INTEGER NOT NULL DEFAULT 1,
+  rotation_months INTEGER NOT NULL DEFAULT 6
 );
 
 -- 금액(amount)은 항상 양수로 두고, 잔고 계산은 kind로 한다.
@@ -136,13 +137,17 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 `;
 
-export const DEFAULT_SETTINGS = { overdue_days: 30 };
+// round_unit: 결제 대상 금액을 이 금액 단위로 내림한다 (0이나 1이면 내림 없음)
+export const DEFAULT_SETTINGS = { overdue_days: 30, round_unit: 100000 };
 
 export function openDb(path) {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
   db.exec(SCHEMA);
+  // 예전에 만든 데이터베이스에는 없는 열을 채워 넣는다
+  const vendorCols = db.prepare('PRAGMA table_info(vendors)').all().map((c) => c.name);
+  if (!vendorCols.includes('rotation_months')) db.exec('ALTER TABLE vendors ADD COLUMN rotation_months INTEGER NOT NULL DEFAULT 6');
   return db;
 }
 

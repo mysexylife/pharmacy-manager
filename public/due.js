@@ -34,7 +34,8 @@ export function dueView() {
       h('div', { class: 'stats' },
         h('div', { class: 'stat' }, h('span', {}, '결제할 금액 합계'), h('b', {}, `${won(d.total)}원`)),
         h('div', { class: 'stat' }, h('span', {}, '처리 중인 반품·차용'), h('b', {}, `${pending}건`)),
-        h('div', { class: 'stat' }, h('span', {}, `기준 (${formatDate(d.cutoff)} 잔고)`), h('b', {}, '6개월 전 월말'))),
+        h('div', { class: 'stat' }, h('span', {}, '결제 금액 계산'), h('b', {}, d.roundUnit > 1 ? `${won(d.roundUnit)}원 단위 내림` : '내림 없음'),
+          h('small', { class: 'hint' }, '회전 개월 수는 제약회사마다 다르게 설정'))),
       pendingCard(d),
       h('div', { class: 'card' }, h('h2', {}, '제약회사별 결제 금액'), ...d.rows.map((r) => dueRow(r, d)),
         h('div', { class: 'duetotal' }, h('span', {}, '합계'), h('b', {}, `${won(d.total)}원`))),
@@ -81,10 +82,15 @@ export function dueView() {
     return h('div', { class: 'duerow open' }, head,
       h('div', { class: 'duebody' },
         h('dl', { class: 'facts' },
-          h('dt', {}, `${formatDate(d.cutoff)} 잔고`), h('dd', {}, `${won(r.pool)}원`),
+          h('dt', {}, `${formatDate(r.cutoff)} 잔고 (${r.rotation_months}개월 전 월말)`), h('dd', {}, `${won(r.pool)}원`),
           h('dt', {}, '이후 결제액'), h('dd', {}, `${won(r.paid)}원`),
           h('dt', {}, '이후 반품액'), h('dd', {}, `${won(r.returned)}원`),
-          h('dt', {}, '현재 잔고'), h('dd', {}, `${won(r.balance)}원`)),
+          h('dt', {}, '현재 잔고'), h('dd', {}, `${won(r.balance)}원`),
+          r.dueExact !== r.due && h('dt', {}, '계산된 금액'),
+          r.dueExact !== r.due && h('dd', {}, `${won(r.dueExact)}원 → ${won(r.due)}원 (내림)`)),
+        h('label', { class: 'f rotation' }, '결제 회전 개월 수',
+          h('input', { type: 'text', inputmode: 'numeric', value: String(r.rotation_months), 'aria-label': `${r.name} 회전 개월 수`,
+            onchange: guard(err, async (e) => { await api('PATCH', `/api/vendors/${r.id}`, { rotation_months: e.target.value }); toast('회전 개월 수를 바꿨어요'); await load(); }) })),
         h('form', { class: 'row', onsubmit: submit(err, async (fd) => {
           await created('vendor_entries', `${r.name} 결제`, api('POST', `/api/vendors/${r.id}/entries`, { kind: 'payment', date: fd.get('date'), amount: fd.get('amount'), description: '결제' }));
           toast('결제를 기록했어요');

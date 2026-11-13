@@ -80,6 +80,9 @@ export function vendorsView() {
       h('strong', {}, v.name),
       h('div', { class: 'barright' },
         tabs('기간', [[6, '최근 6개월'], [0, '전체']], months, (m) => { months = m; refresh(); }),
+        h('label', { class: 'rot', title: '이 제약회사는 몇 개월 전 월말 잔고를 기준으로 결제하는지' }, '결제 회전 ',
+          h('input', { type: 'text', inputmode: 'numeric', value: String(v.rotation_months ?? 6), 'aria-label': '결제 회전 개월 수',
+            onchange: guard(err, async (e) => { await api('PATCH', `/api/vendors/${v.id}`, { rotation_months: e.target.value }); toast('회전 개월 수를 바꿨어요'); await refresh(); }) }), '개월'),
         h('span', {}, '현재 잔고 ', h('b', { class: d.balance < 0 ? 'neg' : '' }, `${won(d.balance)}원`))));
     return [bar, processPanel(v, d), ledgerCard(v, d)];
   }

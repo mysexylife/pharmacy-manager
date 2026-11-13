@@ -104,6 +104,7 @@ test('기간을 줄여 보아도 이전 잔액을 합쳐 잔고가 맞는다', a
 });
 
 test('이번 달 결제 금액 = 6개월 전 월말 잔고 − 이후 결제액 − 이후 반품액', async () => {
+  await ok('PUT', '/api/settings', { round_unit: 1 }); // 이 시험에서는 내림 없이 정확한 금액을 본다
   const v = (await ok('POST', '/api/vendors', { name: '결제계산제약' }, 201)).id;
   const add = (kind, date, amount, description) => ok('POST', `/api/vendors/${v}/entries`, { kind, date, amount, description: description ?? (kind === 'purchase' ? '입고' : '') }, 201);
   await add('purchase', '2026-01-10', 6000000);
@@ -114,7 +115,7 @@ test('이번 달 결제 금액 = 6개월 전 월말 잔고 − 이후 결제액 
   const find = (due) => due.rows.find((r) => r.id === v);
 
   let due = await ok('GET', '/api/due?month=2026-10');
-  assert.equal(due.cutoff, '2026-04-30');
+  assert.equal(find(due).cutoff, '2026-04-30');
   assert.equal(find(due).pool, 10000000);
   assert.equal(find(due).paid, 7000000);
   assert.equal(find(due).due, 3000000);
@@ -196,6 +197,41 @@ test('거래처를 비활성화하면 결제 대상에서 빠진다', async () =
   await ok('PATCH', `/api/vendors/${v}`, { active: false });
   assert.equal((await ok('GET', '/api/due')).rows.some((r) => r.id === v), false);
   assert.equal('car_numbers' in (await ok('GET', `/api/vendors/${v}/ledger`)).vendor, false); // 차량번호 기능은 없다
+});
+
+test('제약회사마다 회전 개월 수가 다르고, 결제 금액은 10만원 단위로 내림한다', async () => {
+  const v = (await ok('POST', '/api/vendors', { name: '회전제약' }, 201)).id;
+  const add = (kind, date, amount, description) => ok('POST', `/api/vendors/${v}/entries`, { kind, date, amount, description: description ?? (kind === 'purchase' ? '입고' : '') }, 201);
+  await add('purchase', '2026-03-10', 1234567);   // 3월 말 잔고
+  await add('purchase', '2026-05-10', 2000000);   // 5월 말 잔고
+  await add('payment', '2026-06-20', 100000);
+  const find = (d) => d.rows.find((r) => r.id === v);
+  await ok('PUT', '/api/settings', { round_unit: 1 });
+  let d = await ok('GET', '/api/due?month=2026-10');
+  assert.equal(find(d).rotation_months, 6);
+  assert.equal(find(d).cutoff, '2026-04-30');
+  assert.equal(find(d).pool, 1234567);            // 6개월: 4월 말 잔고
+  assert.equal(find(d).due, 1234567 - 100000);
+  // 이 제약회사는 5개월 회전: 5월 말 잔고가 기준
+  await ok('PATCH', `/api/vendors/${v}`, { rotation_months: 5 });
+  d = await ok('GET', '/api/due?month=2026-10');
+  assert.equal(find(d).cutoff, '2026-05-31');
+  assert.equal(find(d).pool, 3234567);
+  assert.equal(find(d).due, 3234567 - 100000);
+  assert.equal((await call('PATCH', `/api/vendors/${v}`, { rotation_months: 0 })).status, 400);
+  assert.equal((await call('PATCH', `/api/vendors/${v}`, { rotation_months: 99 })).status, 400);
+  // 10만원 단위 내림 (기본값)
+  await ok('PUT', '/api/settings', { round_unit: 100000 });
+  d = await ok('GET', '/api/due?month=2026-10');
+  assert.equal(find(d).dueExact, 3134567);
+  assert.equal(find(d).due, 3100000);
+  assert.equal(d.roundUnit, 100000);
+  assert.equal(d.total % 100000, 0);
+  // 설정에서 내림을 끌 수 있다
+  await ok('PUT', '/api/settings', { round_unit: 0 });
+  assert.equal(find(await ok('GET', '/api/due?month=2026-10')).due, 3134567);
+  await ok('PUT', '/api/settings', { round_unit: 100000 });
+  assert.equal((await ok('GET', '/api/vendors')).find((x) => x.id === v).rotation_months, 5);
 });
 
 // ---------------------------------------------------------------- 병원 외상

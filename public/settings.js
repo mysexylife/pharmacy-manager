@@ -30,6 +30,8 @@ export function settingsView() {
     const s = await api('GET', '/api/settings');
     settingsForm.replaceChildren(
       moneyField('연체 기준(일)', 'overdue_days', { value: String(s.overdue_days), required: true }),
+      moneyField('결제 금액 내림 단위(원)', 'round_unit', { value: String(s.round_unit), required: true }),
+      h('p', { class: 'muted small' }, '결제 대상 금액을 이 단위로 내림합니다. 100000이면 10만원 단위, 0이면 내림하지 않습니다. 제약회사별 회전 개월 수는 제약회사 장부 화면 위쪽에서 바꿉니다.'),
       h('button', { class: 'btn', type: 'submit' }, '저장'));
   });
   settingsForm.addEventListener('submit', submit(err, async (fd) => {

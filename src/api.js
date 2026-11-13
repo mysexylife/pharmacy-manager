@@ -125,32 +125,36 @@ export function buildRoutes(db, ctx = {}) {
   }
 
   // ---- 이번 달 결제 대상 ------------------------------------------------
-  // 이번에 결제할 금액 = 6개월 전 월말 잔고 - 그 이후 결제액 - 그 이후 반품액 (음수면 0)
+  // 이번에 결제할 금액 = (회전 개월 수 전 월말 잔고) - 그 이후 결제액 - 그 이후 반품액 (음수면 0).
+  // 회전 개월 수는 제약회사마다 다르고, 계산된 금액은 설정한 단위(기본 10만원)로 내림한다.
+  const floorTo = (n, unit) => (unit > 1 ? Math.floor(n / unit) * unit : n);
+
   function dueFor(month) {
     const monthStart = `${month}-01`;
     const monthEnd = endOfMonth(monthStart);
-    const cutoff = endOfMonth(addMonths(monthStart, -6));
-    const rows = q(`
-      SELECT v.id, v.name,
-        COALESCE(SUM(CASE WHEN e.date <= :cutoff THEN e.delta END), 0) AS pool,
+    const unit = getSetting(db, 'round_unit');
+    const agg = q(`
+      SELECT
+        COALESCE(SUM(CASE WHEN e.date <= :cutoff THEN ${VENDOR_DELTA} END), 0) AS pool,
         COALESCE(SUM(CASE WHEN e.date > :cutoff AND e.date <= :end AND e.kind = 'payment' THEN e.amount END), 0) AS paid,
         COALESCE(SUM(CASE WHEN e.date > :cutoff AND e.date <= :end AND e.kind = 'return' THEN e.amount END), 0) AS returned,
-        COALESCE(SUM(e.delta), 0) AS balance
-      FROM vendors v
-      LEFT JOIN (SELECT vendor_id, date, kind, amount, ${VENDOR_DELTA} AS delta
-                 FROM vendor_entries WHERE deleted_at IS NULL) e ON e.vendor_id = v.id
-      WHERE v.active = 1
-      GROUP BY v.id ORDER BY v.sort, v.name`).all({ cutoff, end: monthEnd });
+        COALESCE(SUM(${VENDOR_DELTA}), 0) AS balance
+      FROM vendor_entries e WHERE e.vendor_id = :vid AND e.deleted_at IS NULL`);
     const counts = pendingCounts();
-    const out = rows.map((r) => ({
-      ...r,
-      due: Math.max(0, r.pool - r.paid - r.returned),
-      pendingReturns: counts.returns.get(r.id) ?? 0,
-      openLoans: counts.loans.get(r.id) ?? 0,
-      openNotes: counts.notes.get(r.id) ?? 0,
-    }));
+    const out = q('SELECT id, name, rotation_months FROM vendors WHERE active = 1 ORDER BY sort, name').all().map((v) => {
+      const cutoff = endOfMonth(addMonths(monthStart, -v.rotation_months));
+      const r = agg.get({ vid: v.id, cutoff, end: monthEnd });
+      const dueExact = Math.max(0, r.pool - r.paid - r.returned);
+      return {
+        id: v.id, name: v.name, rotation_months: v.rotation_months, cutoff, ...r,
+        dueExact, due: floorTo(dueExact, unit),
+        pendingReturns: counts.returns.get(v.id) ?? 0,
+        openLoans: counts.loans.get(v.id) ?? 0,
+        openNotes: counts.notes.get(v.id) ?? 0,
+      };
+    });
     return {
-      month, cutoff, monthEnd, rows: out,
+      month, monthEnd, roundUnit: unit, rows: out,
       total: out.reduce((s, r) => s + r.due, 0),
       pending: pendingLists(null),
       notes: q(`SELECT n.id, n.vendor_id, v.name AS vendor, n.body, n.done, n.done_date
@@ -301,6 +305,7 @@ export function buildRoutes(db, ctx = {}) {
           if (body[key] === undefined) continue;
           const n = money(body[key], key);
           if (key === 'overdue_days' && n < 1) throw new HttpError(400, '연체 기준은 1일 이상이어야 합니다');
+          if (key === 'round_unit' && n > 100000000) throw new HttpError(400, '내림 단위가 너무 큽니다');
           setSetting(db, key, n);
         }
         audit(db, 'settings', JSON.stringify(body));
@@ -327,7 +332,7 @@ export function buildRoutes(db, ctx = {}) {
       handler: () => {
         const counts = pendingCounts();
         const rows = q(`
-          SELECT v.id, v.name, v.active, COALESCE(SUM(e.delta), 0) AS balance
+          SELECT v.id, v.name, v.active, v.rotation_months, COALESCE(SUM(e.delta), 0) AS balance
           FROM vendors v
           LEFT JOIN (SELECT vendor_id, ${VENDOR_DELTA} AS delta FROM vendor_entries WHERE deleted_at IS NULL) e
             ON e.vendor_id = v.id
@@ -361,6 +366,11 @@ export function buildRoutes(db, ctx = {}) {
           if (body.name !== undefined) q('UPDATE vendors SET name = ? WHERE id = ?').run(str(body.name, '이름', { required: true, max: 60 }), v.id);
         });
         if (body.active !== undefined) q('UPDATE vendors SET active = ? WHERE id = ?').run(flag(body.active), v.id);
+        if (body.rotation_months !== undefined) {
+          const m = money(body.rotation_months, '회전 개월 수');
+          if (m < 1 || m > 36) throw new HttpError(400, '회전 개월 수는 1~36개월 사이로 입력하세요');
+          q('UPDATE vendors SET rotation_months = ? WHERE id = ?').run(m, v.id);
+        }
         audit(db, 'vendor.update', `${v.name} ${JSON.stringify(body)}`);
         return { body: { ok: true } };
       },
