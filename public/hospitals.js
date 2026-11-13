@@ -92,11 +92,10 @@ export function hospitalsView() {
   //   결제액           → 결제
   //   원래 금액        → 처방조제약 (외상액 = 원래 금액 − 직접 입력한 할인액, 비우면 할인 없음)
   //   외상액           → 일반의약품 직접 입력 (음수면 조정)
-  //   품목 이름 + 수량 → 단가표에 있는 일반의약품 (외상액은 단가 × 수량)
+  //   (품목 이름·수량은 기록만 하고 외상액은 직접 입력한다. 단가표는 확인용이다)
   function buildAddRow(d, products) {
     const date = dateInput('date', lastDate);
-    const list = h('datalist', { id: 'hospital-products' }, products.map((p) => h('option', { value: p.name })));
-    const item = h('input', { name: 'item', type: 'text', autocomplete: 'off', placeholder: '환자명 · 품목', list: 'hospital-products', 'aria-label': '환자명·품목' });
+    const item = h('input', { name: 'item', type: 'text', autocomplete: 'off', placeholder: '환자명 · 품목', 'aria-label': '환자명·품목' });
     const field = (name, label, placeholder = label) => h('input', { name, type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder, 'aria-label': label });
     const qty = field('qty', '수량');
     const original = field('original', '원래 금액');
@@ -106,7 +105,6 @@ export function hospitalsView() {
     const preview = h('span', { class: 'dim' }, '');
     refs = { item };
 
-    const productOf = () => products.find((p) => p.name === item.value.trim());
     // 입력한 내용으로 종류와 외상액을 계산한다. 화면의 미리보기와 저장이 같은 계산을 쓴다.
     const plan = () => {
       const o = moneyOf(original.value);
@@ -121,14 +119,12 @@ export function hospitalsView() {
         return { kind: 'rx', delta: Math.max(0, o - disc), body: { original: o, discount: disc } };
       }
       if (b) return { kind: b < 0 ? 'adjust' : 'otc', delta: b, body: { billed: b, qty: b < 0 ? undefined : q } };
-      const prod = productOf();
-      if (prod) return { kind: 'otc', delta: prod.price * q, body: { product_id: prod.id, qty: q } };
-      throw new Error('원래 금액, 외상액, 결제액 중 하나를 입력하세요 (단가표에 있는 품목은 이름과 수량만)');
+      throw new Error('원래 금액, 외상액, 결제액 중 하나를 입력하세요');
     };
     const update = () => {
       try {
         const x = plan();
-        billed.placeholder = x.kind === 'rx' || (x.kind === 'otc' && x.body.product_id) ? won(x.delta) : '외상액';
+        billed.placeholder = x.kind === 'rx' ? won(x.delta) : '외상액';
         preview.textContent = `→ ${won(d.balance + x.delta)}`;
       } catch { billed.placeholder = '외상액'; preview.textContent = ''; }
     };
@@ -153,7 +149,7 @@ export function hospitalsView() {
     }
     return [
       cell('날짜', date.node),
-      cell('환자명·품목', item, list),
+      cell('환자명·품목', item),
       cell('수량', qty),
       cell('원래 금액', original),
       cell('할인액', discount),
