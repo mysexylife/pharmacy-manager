@@ -442,3 +442,10 @@ tr[hidden] { display: none !important; }
 .rot input { width: 44px; min-height: 30px; padding: 2px 6px; text-align: center; font-size: 14px; }
 .f.rotation { max-width: 220px; margin-top: 8px; }
 .f.rotation input { width: 80px; }
+
+/* 제약회사 목록 안의 작은 검색 칸 */
+.searchbox.small { padding: 0 10px; margin: 0 0 8px; gap: 6px; border-radius: 8px; }
+.searchbox.small input[type=search] { min-height: 32px; font-size: 14px; }
+.searchbox.small .icon svg { width: 16px; height: 16px; }
+.searchbox.small { min-width: 0; width: 100%; }
+.filterstatus[hidden] { display: none; }

@@ -75,7 +75,7 @@ export function hospitalsView() {
     }
     const cells = buildAddRow(d, products);
     const card = sheet({
-      cols: ['124px', 'minmax(150px, 1fr)', '58px', '88px', '80px', '88px', '88px', '96px', '44px'],
+      cols: ['136px', 'minmax(150px, 1fr)', '58px', '88px', '80px', '88px', '88px', '96px', '44px'],
       heads: [['날짜'], ['환자명·품목'], ['수량', true], ['원래 금액', true], ['할인액', true], ['외상액', true], ['결제액', true], ['잔고', true], ['']], filterKey: 'hospital',
       rows, addCells: cells, focusEl: refs.item,
     });
