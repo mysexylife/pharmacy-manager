@@ -10,6 +10,13 @@ import { attachFilters } from './filter.js';
 //   focusEl   "+ 행 추가" 버튼을 누르면 커서가 갈 곳 (폰)
 export const cell = (label, ...kids) => h('div', { class: 'cell', 'data-label': label }, ...kids);
 
+// 잘린 칸의 전체 글자 보기 창 (한 번에 하나만, 바깥을 누르거나 Esc·스크롤하면 닫힘)
+let reveal = null;
+function closeReveal() { reveal?.remove(); reveal = null; }
+document.addEventListener('pointerdown', (e) => { if (reveal && !reveal.contains(e.target) && !e.target.closest?.('.ledger td')) closeReveal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeReveal(); });
+window.addEventListener('scroll', closeReveal, { passive: true });
+
 // 열 너비: '120px'(고정) 또는 'minmax(최소px, 비율fr)'(남는 폭을 비율대로 나눔, 최소 폭 아래로는 줄지 않음)
 function parseCols(cols) {
   return cols.map((w) => {
@@ -51,9 +58,20 @@ export function sheet({ cols, heads, rows, addCells, focusEl, className = '', fi
   for (const tr of table.tBodies[0].rows) {
     [...tr.cells].forEach((td, i) => {
       if (leftCols.has(i)) td.classList.add('ltext');
-      if (!td.title && td.textContent.trim().length > 12) td.title = td.textContent.trim();
     });
   }
+  // 잘려 보이는 칸을 누르면 전체 글자가 떠서 보인다 (줄 높이는 그대로)
+  table.tBodies[0].addEventListener('click', (e) => {
+    const td = e.target.closest('td');
+    if (!td || e.target.closest('input, button, label, a, select')) return;
+    closeReveal();
+    if (card.classList.contains('stack') || td.scrollWidth <= td.clientWidth + 1) return;
+    const r = td.getBoundingClientRect();
+    reveal = h('div', { class: 'reveal', role: 'tooltip' }, td.textContent.trim());
+    reveal.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - 380))}px`;
+    reveal.style.top = `${r.bottom + 2}px`;
+    document.body.append(reveal);
+  });
   // 카드 폭이 열들이 들어갈 최소 폭보다 좁아지면 "카드형"(폰 모양)으로 바꾼다. 창 크기가 아니라 실제 표 폭을 기준으로 한다.
   const minWidth = specs.reduce((n, c) => n + (c.fixed ?? c.min), 0) + 24;
   let bar = null;
