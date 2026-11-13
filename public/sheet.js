@@ -39,6 +39,15 @@ export function sheet({ cols, heads, rows, addCells, focusEl, className = '', fi
     } }, '+ 행 추가'));
   }
   if (filterKey) attachFilters(card, filterKey, heads);
-  requestAnimationFrame(fit);
+  requestAnimationFrame(() => {
+    fit();
+    // 위쪽에 붙어 다니는 제목 막대(제약회사 이름 등)가 있으면 열 제목은 그 아래에 붙는다
+    const stickyBar = document.querySelector('.stickybar');
+    if (stickyBar) {
+      const place = () => card.style.setProperty('--thead-top', `${Math.round((parseFloat(getComputedStyle(stickyBar).top) || 0) + stickyBar.offsetHeight)}px`);
+      place();
+      new ResizeObserver(place).observe(stickyBar);
+    }
+  });
   return card;
 }

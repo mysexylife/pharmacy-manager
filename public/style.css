@@ -67,7 +67,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 28px 36px 56px; }
 
 /* ---- 카드 · 표 ---- */
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
-.card.flush { padding: 0; overflow: hidden; }
+.card.flush { padding: 0; overflow: clip; } /* clip은 스크롤 칸을 만들지 않아서 안쪽 표의 열 제목 고정이 그대로 작동한다 */
 .card.flush .tabstrip { padding: 0 20px; }
 .card.flush .ledgercard { border: 0; box-shadow: none; margin: 0; border-radius: 0; }
 .muted { color: var(--muted); }
@@ -417,7 +417,7 @@ table.plain td { padding: 12px 8px; }
 
 /* 열 필터 */
 tr[hidden] { display: none !important; }
-.ledger th.hasfilter { position: relative; white-space: nowrap; }
+.ledger th.hasfilter { white-space: nowrap; }
 .fbtn { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 11px; padding: 2px 4px; margin-left: 2px; border-radius: 4px; line-height: 1; }
 .fbtn:hover { background: var(--bg); color: var(--text); }
 .fbtn.on { background: var(--brand-soft); color: var(--brand); }
@@ -455,3 +455,6 @@ tr[hidden] { display: none !important; }
 .periodpick .yearsel[aria-selected="true"] { border-color: var(--brand); }
 .periodpick select { border: 0; background: none; font-size: 14px; padding: 4px 2px; min-height: 0; cursor: pointer; color: var(--text); }
 .periodpick .yearsel[aria-selected="true"] select { color: var(--brand); font-weight: 600; }
+
+/* 틀 고정: 표를 아래로 내려도 열 제목이 위에 계속 보인다 (위쪽 제목 막대가 있으면 그 아래에 붙는다) */
+.ledger thead th { position: sticky; top: var(--thead-top, 0px); z-index: 4; background: var(--card); box-shadow: 0 1px 0 var(--line); }
