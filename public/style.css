@@ -161,7 +161,7 @@ th .hint { display: block; font-size: 11px; color: var(--muted); margin-top: 2px
 .menu .danger { color: var(--danger); }
 
 /* ---- 화면별 ---- */
-.split { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
+.split { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; align-items: start; }
 .split > *, .ledgergrid > *, .card { min-width: 0; }
 .tablewrap { overflow-x: auto; }
 .ledgergrid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
