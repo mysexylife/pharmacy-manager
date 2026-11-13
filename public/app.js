@@ -44,6 +44,12 @@ async function logout() {
   render();
 }
 
+// 사이드바: 펼침/접힘(아이콘만). 직접 고른 상태는 이 기기에 기억하고, 고른 적이 없으면 화면 폭(1500px 이하면 접힘)을 따른다.
+const SIDEBAR_KEY = 'pharmacy-sidebar';
+const readPref = () => { try { return localStorage.getItem(SIDEBAR_KEY); } catch { return null; } };
+const isMini = () => (readPref() === 'closed' ? true : readPref() === 'open' ? false : window.innerWidth <= 1500);
+window.addEventListener('resize', () => document.querySelector('.shell')?.classList.toggle('mini', isMini()));
+
 // 큰 화면에서는 왼쪽 사이드바, 폰에서는 아래쪽 메뉴 막대가 된다.
 function shell() {
   const current = TABS.find(([id]) => id === state.tab) ?? TABS[0];
@@ -52,11 +58,18 @@ function shell() {
     onclick: () => { state.tab = id; render(); },
   }, icon(ic), h('span', { class: 'label' }, label))));
   return [
-    h('div', { class: 'shell' },
+    h('div', { class: `shell${isMini() ? ' mini' : ''}` },
       h('aside', { class: 'side' },
         h('div', { class: 'brand' }, logo(), h('span', { class: 'brandname' }, '푸른약국')),
         nav,
         undoControls('insidebar'),
+        h('button', { type: 'button', class: 'navtoggle', 'aria-label': '사이드바 접기·펼치기', onclick: (e) => {
+          const shellEl = e.currentTarget.closest('.shell');
+          const mini = !shellEl.classList.contains('mini');
+          shellEl.classList.toggle('mini', mini);
+          try { localStorage.setItem(SIDEBAR_KEY, mini ? 'closed' : 'open'); } catch { /* 저장이 막혀 있어도 이번 화면에서는 바뀐다 */ }
+          e.currentTarget.title = mini ? '사이드바 펼치기' : '사이드바 접기';
+        }, title: isMini() ? '사이드바 펼치기' : '사이드바 접기' }, icon('sidebar'), h('span', { class: 'label' }, '메뉴 접기')),
         h('button', { type: 'button', class: 'navlogout', title: '로그아웃', onclick: logout }, icon('logout'), h('span', { class: 'label' }, '로그아웃'))),
       h('div', { class: 'content' },
         h('header', { class: 'topbar' }, h('div', { class: 'brand' }, logo(), h('span', { class: 'brandname' }, '푸른약국')),

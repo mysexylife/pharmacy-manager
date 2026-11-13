@@ -37,11 +37,13 @@ h3 { font-size: 15px; margin: 18px 0 8px; }
 .logo { width: 28px; height: 28px; display: inline-flex; flex: none; }
 .logo svg { width: 100%; height: 100%; display: block; }
 nav.tabs { display: flex; flex-direction: column; gap: 4px; }
-nav.tabs button, .navlogout { display: flex; align-items: center; gap: 12px; border: 0; background: none; padding: 11px 12px;
+nav.tabs button, .navlogout, .navtoggle { display: flex; align-items: center; gap: 12px; border: 0; background: none; padding: 11px 12px;
   border-radius: 8px; color: var(--text); cursor: pointer; text-align: left; font-size: 15px; width: 100%; }
-nav.tabs button:hover, .navlogout:hover { background: var(--bg); }
+nav.tabs button:hover, .navlogout:hover, .navtoggle:hover { background: var(--bg); }
 nav.tabs button[aria-current="page"] { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
-.navlogout { margin-top: auto; color: var(--muted); }
+.navlogout, .navtoggle { color: var(--muted); }
+.navtoggle { margin-top: 4px; }
+.shell .side .navlogout { margin-top: 0; }
 .icon { display: inline-flex; flex: none; }
 .content { min-width: 0; }
 .topbar { display: none; }
@@ -159,7 +161,7 @@ th .hint { display: block; font-size: 11px; color: var(--muted); margin-top: 2px
 .menu .danger { color: var(--danger); }
 
 /* ---- 화면별 ---- */
-.split { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px; align-items: start; }
+.split { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
 .split > *, .ledgergrid > *, .card { min-width: 0; }
 .tablewrap { overflow-x: auto; }
 .ledgergrid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
@@ -265,12 +267,15 @@ a.tel { white-space: nowrap; }
 .vendortoggle { display: none; }
 
 /* 중간 크기 화면(노트북): 사이드바는 아이콘만 보여서 표에 폭을 더 준다 */
-@media (min-width: 901px) and (max-width: 1500px) {
-  .shell { grid-template-columns: 72px 1fr; }
-  .side { padding: 20px 8px; align-items: stretch; }
-  .side .brand { justify-content: center; padding: 4px 0 20px; }
-  .side .brandname, nav.tabs .label, .navlogout .label { display: none; }
-  nav.tabs button, .navlogout { justify-content: center; padding: 12px 0; }
+/* 사이드바 접기(아이콘만): 오른쪽 아래 버튼으로 열고 닫는다. 기본은 넓은 화면에서 펼침, 좁은 화면에서 접힘 */
+@media (min-width: 901px) {
+  .shell.mini { grid-template-columns: 72px 1fr; }
+  .shell.mini .side { padding: 20px 8px; align-items: stretch; }
+  .shell.mini .side .brand { justify-content: center; padding: 4px 0 20px; }
+  .shell.mini .side .brandname, .shell.mini nav.tabs .label, .shell.mini .navlogout .label, .shell.mini .navtoggle .label { display: none; }
+  .shell.mini nav.tabs button, .shell.mini .navlogout, .shell.mini .navtoggle { justify-content: center; padding: 12px 0; }
+  .shell.mini .undobar.insidebar .undobtn { justify-content: center; padding: 12px 0; }
+  .shell.mini .undobar.insidebar .label { display: none; }
 }
 /* ---- 병원 외상: 왼쪽 내역표 + 오른쪽 품목 단가표, 환자 외상: 이름 누르면 전체 목록 ---- */
 .hospgrid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; align-items: start; }
@@ -306,7 +311,7 @@ table.plain td { padding: 12px 8px; }
   .shell { grid-template-columns: 1fr; }
   .side { position: fixed; top: auto; bottom: 0; left: 0; right: 0; height: auto; z-index: 30; flex-direction: row;
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); border-right: 0; border-top: 1px solid var(--line); }
-  .side .brand, .navlogout { display: none; }
+  .side .brand, .navlogout, .navtoggle { display: none; }
   nav.tabs { flex-direction: row; width: 100%; }
   nav.tabs button { flex: 1; flex-direction: column; gap: 2px; padding: 6px 2px; font-size: 11px; justify-content: center; text-align: center; }
   nav.tabs .label { white-space: nowrap; }
@@ -395,13 +400,9 @@ table.plain td { padding: 12px 8px; }
 .undobtn:hover:not(:disabled) { background: var(--bg); color: var(--text); }
 .undobtn:disabled { opacity: .35; cursor: default; }
 .undobar.insidebar { flex: 0 0 auto; flex-direction: column; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); }
-.undobar.insidebar + .navlogout { margin-top: 4px; }
+
 .undobar.top { display: none; }
 .topright { display: flex; align-items: center; gap: 2px; }
-@media (min-width: 901px) and (max-width: 1500px) {
-  .undobar.insidebar .undobtn { justify-content: center; padding: 12px 0; }
-  .undobar.insidebar .label { display: none; }
-}
 @media (max-width: 900px) {
   .undobar.insidebar { display: none; }
   .undobar.top { display: flex; }
