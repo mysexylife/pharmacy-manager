@@ -60,16 +60,16 @@ function shell() {
   return [
     h('div', { class: `shell${isMini() ? ' mini' : ''}` },
       h('aside', { class: 'side' },
-        h('div', { class: 'brand' }, logo(), h('span', { class: 'brandname' }, '푸른약국')),
+        h('div', { class: 'sidehead' },
+          h('div', { class: 'brand' }, logo(), h('span', { class: 'brandname' }, '푸른약국')),
+          h('button', { type: 'button', class: 'iconbtn sidetoggle', 'aria-label': '사이드바 접기·펼치기', onclick: (e) => {
+            const shellEl = e.currentTarget.closest('.shell');
+            const mini = !shellEl.classList.contains('mini');
+            shellEl.classList.toggle('mini', mini);
+            try { localStorage.setItem(SIDEBAR_KEY, mini ? 'closed' : 'open'); } catch { /* 저장이 막혀 있어도 이번 화면에서는 바뀐다 */ }
+            e.currentTarget.title = mini ? '사이드바 펼치기' : '사이드바 접기';
+          }, title: isMini() ? '사이드바 펼치기' : '사이드바 접기' }, icon('sidebar'))),
         nav,
-        undoControls('insidebar'),
-        h('button', { type: 'button', class: 'navtoggle', 'aria-label': '사이드바 접기·펼치기', onclick: (e) => {
-          const shellEl = e.currentTarget.closest('.shell');
-          const mini = !shellEl.classList.contains('mini');
-          shellEl.classList.toggle('mini', mini);
-          try { localStorage.setItem(SIDEBAR_KEY, mini ? 'closed' : 'open'); } catch { /* 저장이 막혀 있어도 이번 화면에서는 바뀐다 */ }
-          e.currentTarget.title = mini ? '사이드바 펼치기' : '사이드바 접기';
-        }, title: isMini() ? '사이드바 펼치기' : '사이드바 접기' }, icon('sidebar'), h('span', { class: 'label' }, '메뉴 접기')),
         h('button', { type: 'button', class: 'navlogout', title: '로그아웃', onclick: logout }, icon('logout'), h('span', { class: 'label' }, '로그아웃'))),
       h('div', { class: 'content' },
         h('header', { class: 'topbar' }, h('div', { class: 'brand' }, logo(), h('span', { class: 'brandname' }, '푸른약국')),

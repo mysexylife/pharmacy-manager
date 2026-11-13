@@ -37,16 +37,15 @@ h3 { font-size: 15px; margin: 18px 0 8px; }
 .logo { width: 28px; height: 28px; display: inline-flex; flex: none; }
 .logo svg { width: 100%; height: 100%; display: block; }
 nav.tabs { display: flex; flex-direction: column; gap: 4px; }
-nav.tabs button, .navlogout, .navtoggle { display: flex; align-items: center; gap: 12px; border: 0; background: none; padding: 11px 12px;
+nav.tabs button, .navlogout { display: flex; align-items: center; gap: 12px; border: 0; background: none; padding: 11px 12px;
   border-radius: 8px; color: var(--text); cursor: pointer; text-align: left; font-size: 15px; width: 100%; }
-nav.tabs button:hover, .navlogout:hover, .navtoggle:hover { background: var(--bg); }
+nav.tabs button:hover, .navlogout:hover { background: var(--bg); }
 nav.tabs button[aria-current="page"] { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
-.navlogout, .navtoggle { color: var(--muted); }
-.navtoggle { margin-top: 4px; }
-.shell .side .navlogout { margin-top: 0; }
+.navlogout { color: var(--muted); margin-top: auto; }
 .icon { display: inline-flex; flex: none; }
 .content { min-width: 0; }
-.topbar { display: none; }
+.topbar { display: flex; justify-content: flex-end; align-items: center; padding: 10px 36px 0; }
+.topbar .brand, .topbar .iconbtn { display: none; }
 main { max-width: 1480px; margin: 0 auto; padding: 28px 36px 56px; }
 
 .pagehead { display: flex; justify-content: space-between; align-items: center; gap: 12px 16px; flex-wrap: wrap; margin-bottom: 20px; }
@@ -272,10 +271,10 @@ a.tel { white-space: nowrap; }
   .shell.mini { grid-template-columns: 72px 1fr; }
   .shell.mini .side { padding: 20px 8px; align-items: stretch; }
   .shell.mini .side .brand { justify-content: center; padding: 4px 0 20px; }
-  .shell.mini .side .brandname, .shell.mini nav.tabs .label, .shell.mini .navlogout .label, .shell.mini .navtoggle .label { display: none; }
-  .shell.mini nav.tabs button, .shell.mini .navlogout, .shell.mini .navtoggle { justify-content: center; padding: 12px 0; }
-  .shell.mini .undobar.insidebar .undobtn { justify-content: center; padding: 12px 0; }
-  .shell.mini .undobar.insidebar .label { display: none; }
+  .shell.mini .side .brandname, .shell.mini nav.tabs .label, .shell.mini .navlogout .label { display: none; }
+  .shell.mini nav.tabs button, .shell.mini .navlogout { justify-content: center; padding: 12px 0; }
+  .shell.mini .sidehead { flex-direction: column; align-items: center; gap: 4px; padding-bottom: 12px; }
+  .shell.mini .sidehead .brand { padding: 4px 0 0; }
 }
 /* ---- 병원 외상: 왼쪽 내역표 + 오른쪽 품목 단가표, 환자 외상: 이름 누르면 전체 목록 ---- */
 .hospgrid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; align-items: start; }
@@ -311,7 +310,7 @@ table.plain td { padding: 12px 8px; }
   .shell { grid-template-columns: 1fr; }
   .side { position: fixed; top: auto; bottom: 0; left: 0; right: 0; height: auto; z-index: 30; flex-direction: row;
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); border-right: 0; border-top: 1px solid var(--line); }
-  .side .brand, .navlogout, .navtoggle { display: none; }
+  .side .sidehead, .navlogout { display: none; }
   nav.tabs { flex-direction: row; width: 100%; }
   nav.tabs button { flex: 1; flex-direction: column; gap: 2px; padding: 6px 2px; font-size: 11px; justify-content: center; text-align: center; }
   nav.tabs .label { white-space: nowrap; }
@@ -399,12 +398,10 @@ table.plain td { padding: 12px 8px; }
   padding: 9px 12px; border-radius: 8px; font: inherit; font-size: 14px; }
 .undobtn:hover:not(:disabled) { background: var(--bg); color: var(--text); }
 .undobtn:disabled { opacity: .35; cursor: default; }
-.undobar.insidebar { flex: 0 0 auto; flex-direction: column; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); }
 
-.undobar.top { display: none; }
+.undobar.top { display: flex; }
 .topright { display: flex; align-items: center; gap: 2px; }
 @media (max-width: 900px) {
-  .undobar.insidebar { display: none; }
   .undobar.top { display: flex; }
   .undobar.top .label { display: none; }
   .undobar.top .undobtn { padding: 8px; }
@@ -514,3 +511,18 @@ tr[hidden] { display: none !important; }
 .ledger.fixed tbody td.ltext { cursor: default; }
 .reveal { position: fixed; z-index: 60; max-width: 360px; padding: 8px 12px; background: var(--card); color: var(--text); border: 1px solid var(--line);
   border-radius: 8px; box-shadow: 0 10px 28px rgba(20, 30, 60, .18); font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* 사이드바 맨 위: 로고와 접기 버튼 */
+.sidehead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sidehead .brand { padding-bottom: 20px; }
+.sidetoggle { margin-bottom: 16px; color: var(--muted); }
+.sidetoggle:hover { background: var(--bg); color: var(--text); }
+/* 실행 취소 · 다시 실행: 오른쪽 위 (폰에서는 아이콘만) */
+.topbar .undobar.top .undobtn { padding: 6px 10px; }
+@media (max-width: 900px) {
+  .topbar { justify-content: space-between; padding: 8px 14px; }
+  .topbar .brand, .topbar .iconbtn { display: flex; }
+}
+@media (min-width: 901px) {
+  main { padding-top: 6px; }
+}
