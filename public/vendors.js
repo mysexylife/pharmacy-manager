@@ -22,7 +22,7 @@ export function vendorsView() {
   let selected = state.vendorId ?? null;
   let months = 6; // 6 = 최근 6개월, 12·24·… = 최근 N년간, 0 = 전체 기간
   let vq = '';
-  let lastDate = todayKST(); // 입력 행의 날짜는 마지막으로 쓴 날짜를 이어 간다 (같은 날 여러 건을 입력할 때 편하다)
+  const lastDates = new Map(); // 제약회사별로 마지막으로 쓴 날짜를 기억한다 (같은 날 여러 건을 입력할 때 편하다). 다른 제약회사에는 이어지지 않는다
   let refocus = false;
   let justAdded = null; // 방금 추가한 줄: 그 줄로 화면을 옮겨 보여 준다
   let refs = {};
@@ -209,7 +209,7 @@ export function vendorsView() {
 
   // 엑셀의 마지막 빈 줄처럼 쓴다. 입고액이나 결제액 중 하나만 적고 Enter. 음수 입고액은 조정으로 기록된다.
   function buildAddRow(v, d) {
-    const date = dateInput('date', lastDate);
+    const date = dateInput('date', lastDates.get(v.id) ?? todayKST());
     const description = h('input', { name: 'description', type: 'text', autocomplete: 'off', placeholder: '품목명', title: '결제는 비워도 됩니다', 'aria-label': '품목' });
     const qty = h('input', { name: 'qty', type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder: '수량', 'aria-label': '수량' });
     const billed = h('input', { name: 'billed', type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder: '입고액', 'aria-label': '입고액' });
@@ -234,7 +234,7 @@ export function vendorsView() {
         const made = await created('vendor_entries', `${description.value || (p ? '결제' : '입고')}`, api('POST', `/api/vendors/${v.id}/entries`, {
           kind: p ? 'payment' : (b < 0 ? 'adjust' : 'purchase'), date: iso, description: description.value, amount: p || b, qty: qty.value,
         }));
-        lastDate = iso;
+        lastDates.set(v.id, iso);
         justAdded = made.id;
         refocus = true;
         await refresh();
