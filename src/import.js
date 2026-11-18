@@ -213,7 +213,8 @@ export function planHospital(sheets) {
     let date = isoOf(cells.get(dateCol)) ?? isoOf(cells.get(cols['입고일계산']));
     if (!date) { date = prev; warnings.push(`행 ${rowNo}: 날짜가 없어 앞 행의 날짜(${prev ?? '없음'})로 넣었습니다`); }
     if (date) prev = date;
-    raw.push({ rowNo, item, qty: num(cells.get(cols['수량'])), bill, paid, bal, date });
+    const qtyRaw = cells.get(cols['수량']);
+    raw.push({ rowNo, item, qty: num(qtyRaw), qtyText: typeof qtyRaw === 'string' ? text(qtyRaw) : '', bill, paid, bal, date });
   }
   const firstDate = raw.map((r) => r.date).filter(Boolean).sort()[0] ?? todayKST();
   for (const r of raw) r.date ??= firstDate;
@@ -228,6 +229,21 @@ export function planHospital(sheets) {
   const entries = [];
   let sum = opening;
   for (const r of raw) {
+    if (r.bill == null && r.paid == null) {
+      // 금액이 없는 품목 줄(예: "타이레놀 5정")도 기록으로 남긴다. 잔고에는 영향이 없다.
+      if (r.item && !/^이월/.test(r.item)) {
+        const unit = r.qtyText && !/^\d+$/.test(r.qtyText) ? ` ${r.qtyText}` : '';
+        const lead = /^(\d+)/.exec(r.qtyText);
+        entries.push({ date: r.date, kind: 'otc', item: `${r.item}${unit}`, qty: r.qty ?? (lead ? Number(lead[1]) : null), billed: 0, paid: 0 });
+      }
+      continue;
+    }
+    if (r.bill > 0 && r.paid === 5000 && r.bill >= 5000) {
+      // 처방조제약을 가져가면서 같은 줄에 5,000원을 결제한 것은 결제가 아니라 할인이다.
+      entries.push({ date: r.date, kind: 'rx', item: r.item || '조제', qty: null, original: r.bill, discount: 5000, billed: r.bill - 5000, paid: 0 });
+      sum += r.bill - 5000;
+      continue;
+    }
     if (r.bill) {
       entries.push(r.bill > 0
         ? { date: r.date, kind: 'otc', item: r.item || '외상', qty: r.qty, billed: r.bill, paid: 0 }
@@ -357,10 +373,10 @@ export function commit(db, plan, { useComputed = [], reset = false } = {}) {
       if (db.prepare('SELECT 1 FROM hospital_entries WHERE hospital_id = ? LIMIT 1').get(hid)) {
         result.skippedExisting.push(h.name);
       } else {
-        const ins = db.prepare('INSERT INTO hospital_entries (hospital_id, date, kind, item, qty, billed, paid) VALUES (?, ?, ?, ?, ?, ?, ?)');
-        if (h.opening) ins.run(hid, h.openingDate, 'adjust', '이월', null, h.opening, 0);
-        for (const e of h.entries) ins.run(hid, e.date, e.kind, e.item, e.qty, e.billed, e.paid);
-        if (h.excel != null && h.excel !== h.computed) ins.run(hid, h.lastDate, 'adjust', '조정(엑셀 잔고 기준)', null, h.excel - h.computed, 0);
+        const ins = db.prepare('INSERT INTO hospital_entries (hospital_id, date, kind, item, qty, original, discount, billed, paid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        if (h.opening) ins.run(hid, h.openingDate, 'adjust', '이월', null, null, null, h.opening, 0);
+        for (const e of h.entries) ins.run(hid, e.date, e.kind, e.item, e.qty ?? null, e.original ?? null, e.discount ?? null, e.billed, e.paid);
+        if (h.excel != null && h.excel !== h.computed) ins.run(hid, h.lastDate, 'adjust', '조정(엑셀 잔고 기준)', null, null, null, h.excel - h.computed, 0);
         const prod = db.prepare('INSERT OR IGNORE INTO hospital_products (name, price) VALUES (?, ?)');
         for (const p of h.products) prod.run(p.name, p.price);
         result.hospital = true;
