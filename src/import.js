@@ -238,13 +238,8 @@ export function planHospital(sheets) {
   let sum = opening;
   for (const r of raw) {
     if (r.bill == null && r.paid == null) {
-      // 금액이 없는 품목 줄(예: "타이레놀 5정")은 금액 없이 장부에 그대로 둔다 (잔고에는 영향 없음).
-      if (r.item && !/^이월/.test(r.item)) {
-        const unit = r.qtyText && !/^\d+$/.test(r.qtyText) ? ` ${r.qtyText}` : '';
-        const lead = /^(\d+)/.exec(r.qtyText);
-        entries.push({ date: r.date, kind: 'otc', item: `${r.item}${unit}`, qty: r.qty ?? (lead ? Number(lead[1]) : null), billed: 0, paid: 0 });
-        zero += 1;
-      }
+      // 금액이 없는 병원 품목 줄(예: "타이레놀 5정")은 가져오지 않는다. 잔고에는 영향이 없다.
+      if (r.item && !/^이월/.test(r.item)) zero += 1;
       continue;
     }
     if (r.bill > 0 && r.paid === 5000 && r.bill >= 5000) {
