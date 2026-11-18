@@ -53,8 +53,8 @@ export function dueView() {
     }
     const rows = [
       ...returns.map((r) => (r.requested
-        ? { ...r, item: r.qty ? `${r.item} · ${r.qty}개` : r.item, kind: '반품', detail: '명세서 대기', check: null, hint: '금액·처리 완료는 제약회사 장부에서' }
-        : { ...r, item: r.qty ? `${r.item} · ${r.qty}개` : r.item, kind: '반품', detail: '요청 확인 전', check: '요청 확인', path: `/api/returns/${r.id}`, data: { requested: true } })),
+        ? { ...r, item: r.qty ? `${r.item} · ${r.qty}개` : r.item, kind: '반품', detail: '처리 대기', check: null, hint: '처리 완료·금액은 제약회사 장부에서' }
+        : { ...r, item: r.qty ? `${r.item} · ${r.qty}개` : r.item, kind: '반품', detail: '요청 전', check: '반품 요청', path: `/api/returns/${r.id}`, data: { requested: true } })),
       ...loans.map((l) => ({ ...l, kind: '차용', detail: `${l.qty}개`, check: '반환 완료', path: `/api/loans/${l.id}`, data: { returned: true } })),
       ...memos.map((n) => ({ ...n, kind: '메모', item: n.body, detail: '', check: '확인 완료', path: `/api/notes/${n.id}`, data: { done: true } })),
     ];

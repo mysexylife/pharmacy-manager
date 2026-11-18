@@ -598,3 +598,15 @@ tr[hidden] { display: none !important; }
 
 .retfinish { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .retfinish[hidden] { display: none; }
+
+/* 반품 줄: 품목·수량 아래에 [반품 요청] [처리 완료] [반품 금액] */
+.retctl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 4px 0 2px; font-size: 14px; }
+.retctl .check { gap: 6px; }
+.retctl .amtlabel { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.retctl .amt { width: 92px; }
+.retctl .amt.need, .retstep .amt.need { border-color: var(--danger); background: var(--danger-bg); }
+.donedt { color: var(--ink); }
+.retctl .check, .retctl .amtlabel { white-space: nowrap; }
+.retctl > * { flex: 0 0 auto; }
+.plist .retctl > * { flex: 0 0 auto; min-width: auto; }
+.plist .retctl .check { align-items: center; }
