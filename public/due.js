@@ -37,8 +37,10 @@ export function dueView() {
         h('div', { class: 'stat' }, h('span', {}, '결제 금액 계산'), h('b', {}, d.roundUnit > 1 ? `${won(d.roundUnit)}원 단위 내림` : '내림 없음'),
           h('small', { class: 'hint' }, '회전 개월 수는 제약회사마다 다르게 설정'))),
       pendingCard(d),
-      h('div', { class: 'card' }, h('h2', {}, '제약회사별 결제 금액'), ...d.rows.map((r) => dueRow(r, d)),
-        h('div', { class: 'duetotal' }, h('span', {}, '합계'), h('b', {}, `${won(d.total)}원`))),
+      h('div', { class: 'card' }, h('h2', {}, '제약회사별 결제 금액'),
+        h('div', { class: 'duecols', 'aria-hidden': 'true' }, h('span', {}, '제약회사'), h('span', {}, '결제 금액'), h('span', {}, '현재 잔고')),
+        ...d.rows.map((r) => dueRow(r, d)),
+        h('div', { class: 'duetotal' }, h('span', {}, '합계'), h('b', {}, `${won(d.total)}원`), h('b', { class: 'balcol' }, `${won(d.rows.reduce((s, r) => s + r.balance, 0))}원`))),
     ];
   }
 
@@ -77,7 +79,8 @@ export function dueView() {
     h('span', { class: 'dname' }, r.name,
       r.pendingReturns > 0 && badge(`반품 처리 중 ${r.pendingReturns}건`, 'warn'),
       r.openLoans > 0 && badge(`차용 미반환 ${r.openLoans}건`, 'info')),
-    h('b', { class: r.due ? '' : 'muted' }, r.due ? `${won(r.due)}원` : '결제 없음'));
+    h('b', { class: `duecol ${r.due ? '' : 'muted'}` }, r.due ? `${won(r.due)}원` : '결제 없음'),
+    h('span', { class: `balcol ${r.balance < 0 ? 'neg' : ''}` }, `${won(r.balance)}원`));
     if (!isOpen) return h('div', { class: 'duerow' }, head);
 
     const notes = d.notes.filter((n) => n.vendor_id === r.id);

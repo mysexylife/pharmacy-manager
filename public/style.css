@@ -529,3 +529,19 @@ tr[hidden] { display: none !important; }
 .btn.dangerfill { background: var(--danger); border-color: var(--danger); color: #fff; }
 .resetcheck { margin-top: 12px; }
 .resetfields { margin: 8px 0; padding: 12px; border: 1px solid var(--danger); border-radius: 10px; background: var(--danger-bg); }
+
+/* 결제 대상 표: 제약회사 | 결제 금액 | 현재 잔고 */
+.duecols, .duehead, .duetotal { display: grid; grid-template-columns: minmax(0, 1fr) 150px 150px; align-items: center; gap: 12px; }
+.duecols { padding: 8px 8px; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--line); }
+.duecols span:nth-child(n+2), .duehead .duecol, .duehead .balcol, .duetotal b { text-align: right; }
+.duehead .balcol { font-weight: 700; font-size: 16px; color: var(--ink); white-space: nowrap; }
+.duehead .balcol.neg { color: var(--danger); }
+.duetotal { font-size: 18px; }
+.duetotal span:first-child { font-size: 17px; }
+.duetotal .balcol { font-size: 17px; }
+@media (max-width: 720px) {
+  .duecols, .duehead, .duetotal { grid-template-columns: minmax(0, 1fr) 96px 96px; gap: 6px; }
+  .duehead .dname { font-size: 15px; }
+  .duehead .balcol, .duehead b { font-size: 14px; }
+  .duetotal b { font-size: 15px; }
+}
