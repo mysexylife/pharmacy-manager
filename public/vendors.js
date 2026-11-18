@@ -104,14 +104,18 @@ export function vendorsView() {
 
   // ---- 반품 · 차용 · 확인 메모: 내역표 위에 작게 ---------------------------------
   // 끝난 것은 최근 2건만 흐리게 보이고, 나머지는 눌러야 보인다.
+  // 끝난 것은 기본으로 숨긴다 (반품은 전부, 차용·메모는 최근 2건만 흐리게). 눌러야 보인다.
+  const KEEP_DONE = { returns: 0, loans: 2, notes: 2 };
   function compactList(items, isDone, render, key) {
     const open = items.filter((x) => !isDone(x));
     const done = items.filter(isDone);
-    const shown = showAllDone[key] ? done : done.slice(0, 2);
+    const keep = KEEP_DONE[key] ?? 2;
+    const shown = showAllDone[key] ? done : done.slice(0, keep);
+    const label = key === 'returns' ? '처리 완료' : '지난 내역';
     return h('div', {},
       (open.length + shown.length) > 0 && h('ul', { class: 'plist items' }, [...open, ...shown].map(render)),
-      done.length > 2 && h('button', { type: 'button', class: 'linklike', onclick: () => { showAllDone[key] = !showAllDone[key]; loadDetail(); } },
-        showAllDone[key] ? '지난 내역 접기' : `지난 ${done.length - 2}건 더 보기`));
+      done.length > keep && h('button', { type: 'button', class: 'linklike', onclick: () => { showAllDone[key] = !showAllDone[key]; loadDetail(); } },
+        showAllDone[key] ? `${label} 접기` : `${label} ${done.length - keep}건 보기`));
   }
 
   function column(title, hint, pair, list) {
