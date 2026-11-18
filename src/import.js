@@ -133,6 +133,7 @@ function planVendorSheet(sheet) {
     }
     body.push(r);
   }
+  const noAmount = body.filter((r) => r.inn == null && r.pay == null).length; // 품목 이름만 있고 금액이 없는 줄(가져오지 않음)
   const delta = (r) => (r.inn ?? 0) - (r.pay ?? 0);
   if (opening == null) {
     let cum = 0;
@@ -175,7 +176,7 @@ function planVendorSheet(sheet) {
     computed: sum,
     excel: lastRow?.bal ?? null,
     lastDate: lastRow?.date ?? firstDate,
-    warnings, yearFixes,
+    warnings, yearFixes, noAmount, sourceRows: raw.length,
   };
 }
 
@@ -226,6 +227,8 @@ export function planHospital(sheets) {
     if (r.bal != null) { opening = r.bal - cum; break; }
   }
   opening ??= 0;
+  let merged = 0;
+  let zero = 0;
   const entries = [];
   let sum = opening;
   for (const r of raw) {
@@ -235,6 +238,7 @@ export function planHospital(sheets) {
         const unit = r.qtyText && !/^\d+$/.test(r.qtyText) ? ` ${r.qtyText}` : '';
         const lead = /^(\d+)/.exec(r.qtyText);
         entries.push({ date: r.date, kind: 'otc', item: `${r.item}${unit}`, qty: r.qty ?? (lead ? Number(lead[1]) : null), billed: 0, paid: 0 });
+        zero += 1;
       }
       continue;
     }
@@ -242,6 +246,7 @@ export function planHospital(sheets) {
       // 처방조제약을 가져가면서 같은 줄에 5,000원을 결제한 것은 결제가 아니라 할인이다.
       entries.push({ date: r.date, kind: 'rx', item: r.item || '조제', qty: null, original: r.bill, discount: 5000, billed: r.bill - 5000, paid: 0 });
       sum += r.bill - 5000;
+      merged += 1;
       continue;
     }
     if (r.bill) {
@@ -268,7 +273,8 @@ export function planHospital(sheets) {
       if (!products.some((p) => p.name === name)) products.push({ name, price });
     }
   }
-  return { name: HOSPITAL, opening, openingDate: firstDate, entries, products, computed: sum, excel: last?.bal ?? null, lastDate: last?.date ?? firstDate, warnings };
+  return { name: HOSPITAL, opening, openingDate: firstDate, entries, products, computed: sum, excel: last?.bal ?? null, lastDate: last?.date ?? firstDate, warnings,
+    sourceRows: raw.filter((r) => !/^이월/.test(r.item)).length, merged, zero };
 }
 
 // ---- 환자 외상 -----------------------------------------------------------
@@ -317,11 +323,12 @@ export function summarize(plan) {
       opening: v.opening, computed: v.computed, excel: v.excel,
       mismatch: v.excel != null && v.excel !== v.computed,
       diff: v.excel != null ? v.excel - v.computed : 0,
-      warnings: v.warnings.slice(0, 20), yearFixes: v.yearFixes.length, yearFixSamples: v.yearFixes.slice(0, 3),
+      warnings: v.warnings.slice(0, 20), noAmount: v.noAmount, sourceRows: v.sourceRows, yearFixes: v.yearFixes.length, yearFixSamples: v.yearFixes.slice(0, 3),
     })),
     skipped: plan.skipped,
     hospital: plan.hospital && {
       entries: plan.hospital.entries.length, products: plan.hospital.products.length,
+      sourceRows: plan.hospital.sourceRows, merged: plan.hospital.merged, zero: plan.hospital.zero,
       opening: plan.hospital.opening, computed: plan.hospital.computed, excel: plan.hospital.excel,
       mismatch: plan.hospital.excel != null && plan.hospital.excel !== plan.hospital.computed,
       warnings: plan.hospital.warnings,
