@@ -1,7 +1,7 @@
 import {
   h, api, won, errorBox, guard, tabs, badge, confirmDelete, formatDate, parseDate, todayKST, toast, telLink, pageHead, searchBox, rowMenu, dateInput,
 } from './lib.js';
-import { sheet, cell } from './sheet.js';
+import { sheet, cell, revealRow } from './sheet.js';
 import { created, deleted, patched } from './undo.js';
 
 const moneyOf = (text) => {
@@ -25,6 +25,7 @@ export function creditsView() {
   let counts = { open: 0, overdue: 0 };
   let lastDate = todayKST();
   let refocus = false;
+  let justAdded = null;
   let refs = {};
 
   const load = guard(err, async () => {
@@ -37,7 +38,8 @@ export function creditsView() {
       h('div', { class: 'stat' }, h('span', {}, `연체 (${d.overdueDays}일 이상)`), h('b', { class: d.overdueCount ? 'neg' : '' }, `${d.overdueCount}건`)));
     drawTabs();
     list.replaceChildren(table(items, d));
-    if (refocus) { refs.name?.focus(); refocus = false; }
+    if (justAdded != null) { revealRow(justAdded); justAdded = null; }
+    if (refocus) { refs.name?.focus({ preventScroll: true }); refocus = false; }
   });
   const act = (fn, message) => guard(err, async (...a) => {
     await fn(...a);
@@ -56,7 +58,7 @@ export function creditsView() {
 
   function table(items) {
     const paidTab = tab === 'paid';
-    const rows = items.map((i) => h('tr', { class: `${i.paid ? 'paid' : ''} ${i.overdue ? 'overdue-row' : ''}` },
+    const rows = items.map((i) => h('tr', { 'data-id': i.id, class: `${i.paid ? 'paid' : ''} ${i.overdue ? 'overdue-row' : ''}` },
       h('td', { 'data-label': '날짜' }, formatDate(i.date), i.overdue && badge(`${i.days}일`, 'danger')),
       h('td', { 'data-label': '환자명' }, h('button', { type: 'button', class: 'namebtn', onclick: () => openHistory(i.name, i.rrn_front) }, i.name)),
       h('td', { 'data-label': '주민번호 앞' }, i.rrn_front),
@@ -110,11 +112,12 @@ export function creditsView() {
         const iso = date.value();
         if (!iso) throw new Error('날짜를 다시 확인하세요 (예: 26.10.31)');
         moneyOf(amount.value);
-        await created('credits', `${name.value} 외상`, api('POST', '/api/credits', {
+        const made = await created('credits', `${name.value} 외상`, api('POST', '/api/credits', {
           date: iso, name: name.value, rrn_front: rrn.value, phone: phone.value, content: content.value,
           amount: amount.value, memo_done: memo.checked, note: note.value,
         }));
         lastDate = iso;
+        justAdded = made.id;
         refocus = true;
         toast('외상을 추가했어요');
         await load();
@@ -166,6 +169,6 @@ export function creditsView() {
   body.append(tabBox, list);
   load();
   return h('div', {},
-    pageHead('환자 외상', searchBox('환자명·주민번호 앞자리 검색', (v) => { query = v; load(); })),
+    pageHead('환자 외상 장부', searchBox('환자명·주민번호 앞자리 검색', (v) => { query = v; load(); })),
     err, stats, body);
 }

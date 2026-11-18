@@ -12,8 +12,8 @@ const root = document.getElementById('app');
 const TABS = [
   ['due', '결제 대상', dueView, 'due'],
   ['vendors', '제약회사 장부', vendorsView, 'vendors'],
-  ['hospitals', '병원 외상', hospitalsView, 'hospitals'],
-  ['credits', '환자 외상', creditsView, 'credits'],
+  ['hospitals', '병원 외상 장부', hospitalsView, 'hospitals'],
+  ['credits', '환자 외상 장부', creditsView, 'credits'],
   ['settings', '설정', settingsView, 'settings'],
 ];
 

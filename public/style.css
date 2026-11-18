@@ -562,3 +562,23 @@ tr[hidden] { display: none !important; }
 
 /* 환자 외상액 칸: 10만원 단위(100,000)가 잘리지 않게 */
 .creditsheet .ledger.fixed td input.amt { padding: 2px 2px; font-variant-numeric: tabular-nums; }
+
+/* 방금 추가한 줄 강조 */
+@keyframes justadded { from { background: var(--brand-soft); } to { background: transparent; } }
+.ledger tr.justadded td { animation: justadded 2.2s ease-out; }
+
+/* 제약회사 목록: 스크롤을 내려도 따라다녀서 어디서든 바로 다른 제약회사로 이동 */
+@media (min-width: 1201px) {
+  .split > .listbox { position: sticky; top: 16px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; }
+  .split > .listbox .partylist { max-height: none; flex: 1 1 auto; min-height: 0; }
+}
+/* 목록이 접히는 좁은 화면에서는 "제약회사 바꾸기" 버튼 줄이 위에 붙어 다니고, 제약회사 이름 막대는 그 아래에 붙는다 */
+@media (max-width: 1200px) {
+  .split > .listbox { position: sticky; top: 0; z-index: 8; }
+  .split > .listbox.open { max-height: 75vh; overflow-y: auto; }
+  .split .stickybar { top: 62px; }
+}
+@media (max-width: 900px) {
+  .split > .listbox { top: 49px; }
+  .split .stickybar { top: 111px; }
+}

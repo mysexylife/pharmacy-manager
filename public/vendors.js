@@ -3,7 +3,7 @@ import {
   confirmDelete, formatDate, parseDate, todayKST, toast, state, pageHead, searchBox, rowMenu, dateInput,
 } from './lib.js';
 import { addMonths } from './dates.js';
-import { sheet, cell } from './sheet.js';
+import { sheet, cell, revealRow } from './sheet.js';
 import { created, deleted, patched } from './undo.js';
 
 const moneyOf = (text) => {
@@ -24,6 +24,7 @@ export function vendorsView() {
   let vq = '';
   let lastDate = todayKST(); // 입력 행의 날짜는 마지막으로 쓴 날짜를 이어 간다 (같은 날 여러 건을 입력할 때 편하다)
   let refocus = false;
+  let justAdded = null; // 방금 추가한 줄: 그 줄로 화면을 옮겨 보여 준다
   let refs = {};
   const showAllDone = { returns: false, loans: false, notes: false };
 
@@ -72,7 +73,8 @@ export function vendorsView() {
     const f = from();
     const d = await api('GET', `/api/vendors/${selected}/ledger${f ? `?from=${f}` : ''}`);
     detail.replaceChildren(...buildDetail(d));
-    if (refocus) { refs.description?.focus(); refocus = false; }
+    if (justAdded != null) { revealRow(justAdded); justAdded = null; }
+    if (refocus) { refs.description?.focus({ preventScroll: true }); refocus = false; }
   }
 
   function buildDetail(d) {
@@ -185,7 +187,7 @@ export function vendorsView() {
     }
     for (const e of entries) {
       const isIn = e.kind === 'purchase' || e.kind === 'adjust';
-      rows.push(h('tr', {},
+      rows.push(h('tr', { 'data-id': e.id },
         h('td', { 'data-label': '날짜' }, formatDate(e.date)),
         h('td', { 'data-label': '품목' }, e.description || (e.kind === 'payment' ? '결제' : '')),
         h('td', { class: 'num', 'data-label': '수량' }, e.qty ?? ''),
@@ -229,10 +231,11 @@ export function vendorsView() {
         if (!b && !p) throw new Error('입고액이나 결제액을 입력하세요');
         const iso = date.value();
         if (!iso) throw new Error('날짜를 다시 확인하세요 (예: 26.10.31)');
-        await created('vendor_entries', `${description.value || (p ? '결제' : '입고')}`, api('POST', `/api/vendors/${v.id}/entries`, {
+        const made = await created('vendor_entries', `${description.value || (p ? '결제' : '입고')}`, api('POST', `/api/vendors/${v.id}/entries`, {
           kind: p ? 'payment' : (b < 0 ? 'adjust' : 'purchase'), date: iso, description: description.value, amount: p || b, qty: qty.value,
         }));
         lastDate = iso;
+        justAdded = made.id;
         refocus = true;
         await refresh();
       } catch (ex) {

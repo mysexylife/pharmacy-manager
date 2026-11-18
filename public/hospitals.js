@@ -3,7 +3,7 @@ import {
   foldPair, dateField, field, moneyField, badge,
 } from './lib.js';
 import { addMonths } from './dates.js';
-import { sheet, cell, idealWidth } from './sheet.js';
+import { sheet, cell, idealWidth, revealRow } from './sheet.js';
 import { created, deleted, patched } from './undo.js';
 
 // 병원 장부: 이름은 한글 7자, 판매·외상·할인액은 10만원 단위, 잔고는 백만원 단위까지만 나오므로 열을 좁게(넘치면 잘림)
@@ -26,6 +26,7 @@ export function hospitalsView() {
   let back = 1; // 몇 달 전부터 보이는지 (기본 최근 한 달)
   let lastDate = todayKST();
   let refocus = false;
+  let justAdded = null;
   let refs = {};
 
   const refresh = guard(err, async () => { await load(); });
@@ -55,7 +56,8 @@ export function hospitalsView() {
       ledgerCard(d, products),
       pricePanel(products));
     detail.style.setProperty('--ledger-w', `${idealWidth(LEDGER_COLS) + 2}px`); // 단가표가 장부 바로 옆에 붙도록
-    if (refocus) { refs.item?.focus(); refocus = false; }
+    if (justAdded != null) { revealRow(justAdded); justAdded = null; }
+    if (refocus) { refs.item?.focus({ preventScroll: true }); refocus = false; }
   }
 
   // ---- 미리 가져간 조제약: 처방전이 들어오면 확인 체크 -------------------------------
@@ -97,7 +99,7 @@ export function hospitalsView() {
         h('td', { class: 'num', 'data-label': '잔고' }, won(d.opening)), h('td')));
     }
     for (const e of d.entries.slice().reverse()) { // 서버는 최근 것부터 주므로 뒤집어 오래된 순서로
-      rows.push(h('tr', {},
+      rows.push(h('tr', { 'data-id': e.id },
         h('td', { 'data-label': '날짜' }, formatDate(e.date)),
         h('td', { 'data-label': '환자명·품목' }, e.item),
         h('td', { class: 'num', 'data-label': '수량' }, e.qty ?? ''),
@@ -192,8 +194,9 @@ export function hospitalsView() {
         const iso = date.value();
         if (!iso) throw new Error('날짜를 다시 확인하세요 (예: 26.10.31)');
         const x = plan();
-        await created('hospital_entries', item.value || '결제', api('POST', `/api/hospitals/${d.hospital.id}/entries`, { kind: x.kind, date: iso, item: item.value, ...x.body }));
+        const made = await created('hospital_entries', item.value || '결제', api('POST', `/api/hospitals/${d.hospital.id}/entries`, { kind: x.kind, date: iso, item: item.value, ...x.body }));
         lastDate = iso;
+        justAdded = made.id;
         refocus = true;
         await load();
       } catch (ex) {
@@ -254,5 +257,5 @@ export function hospitalsView() {
   }
 
   refresh();
-  return h('div', {}, pageHead('병원 외상'), err, detail);
+  return h('div', {}, pageHead('병원 외상 장부'), err, detail);
 }

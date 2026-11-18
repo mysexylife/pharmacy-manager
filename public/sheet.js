@@ -25,6 +25,18 @@ document.addEventListener('pointerdown', (e) => { if (reveal && !reveal.contains
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeReveal(); });
 window.addEventListener('scroll', closeReveal, { passive: true });
 
+// 방금 추가한 줄(data-id)로 화면을 옮기고 잠깐 강조한다
+export function revealRow(id) {
+  if (id == null) return;
+  setTimeout(() => {
+    const tr = document.querySelector(`.ledger tbody tr[data-id="${id}"]`);
+    if (!tr) return;
+    tr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    tr.classList.add('justadded');
+    setTimeout(() => tr.classList.remove('justadded'), 2200);
+  }, 60);
+}
+
 // 열 너비: '120px'(고정) / 'minmax(최소px, 비율fr)'(남는 폭을 비율대로 나눔, 최소 폭 아래로는 줄지 않음)
 //          / 'minmax(최소px, 최대px)'(최소~최대 사이에서 쓰고, 넓어져도 최대를 넘지 않음)
 function parseCols(cols) {
