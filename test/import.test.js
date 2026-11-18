@@ -193,8 +193,7 @@ test('병원 외상: 같은 줄의 5,000원 결제는 할인액으로, 금액 �
   const h = buildPlan([buf]).hospital;
   const rx = h.entries.find((e) => e.item === '한상근 조제');
   assert.deepEqual([rx.kind, rx.original, rx.discount, rx.billed, rx.paid], ['rx', 61600, 5000, 56600, 0]);
-  assert.ok(h.advances.some((e) => e.item === '타이레놀 5정' && e.qty === 5)); // 금액 없는 줄은 "미리 가져간 조제약"으로
-  assert.equal(h.entries.some((e) => e.item.startsWith('타이레놀')), false);
+  assert.ok(h.entries.some((e) => e.item === '타이레놀 5정' && e.qty === 5 && e.billed === 0 && e.paid === 0)); // 금액 없는 줄은 금액 없이 장부에
   assert.equal(h.entries.filter((e) => e.kind === 'payment').map((e) => e.paid).join(), '10000,20000');
   assert.equal(h.computed, 170600);
   assert.equal(h.excel, 170600); // 잔고는 엑셀과 그대로 일치
@@ -204,6 +203,20 @@ test('병원 외상: 같은 줄의 5,000원 결제는 할인액으로, 금액 �
   const row = db.prepare("SELECT kind, original, discount, billed FROM hospital_entries WHERE item = '한상근 조제'").get();
   assert.deepEqual([row.kind, row.original, row.discount, row.billed], ['rx', 61600, 5000, 56600]);
   assert.equal(db.prepare('SELECT SUM(billed - paid) b FROM hospital_entries').get().b, 170600);
-  const adv = db.prepare('SELECT item, qty, done FROM hospital_advances').all();
-  assert.deepEqual(adv.map((a) => [a.item, a.qty, a.done]), [['타이레놀 5정', 5, 1]]);
+  assert.ok(db.prepare("SELECT 1 FROM hospital_entries WHERE item = '타이레놀 5정' AND billed = 0 AND paid = 0").get());
+});
+
+test('제약회사 시트: 금액 없이 품목 이름만 있는 줄도 0원 줄로 가져온다 (잔고 영향 없음)', () => {
+  const buf = book([{ name: '고려', rows: [HEAD,
+    [null, 2025, D('2025-03-05'), '약A 외', 500, null, 500],
+    [null, 2025, D('2025-03-05'), '약B', null, null, 500],
+    [null, 2025, D('2025-03-06'), '결제', null, 100, 400]] }]);
+  const v = buildPlan([buf]).vendors[0];
+  assert.deepEqual(v.entries.map((e) => [e.description, e.amount]), [['약A 외', 500], ['약B', 0], ['결제', 100]]);
+  assert.equal(v.computed, 400);
+  assert.equal(v.excel, 400);
+  const db = openDb(':memory:');
+  commit(db, buildPlan([buf]));
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM vendor_entries WHERE amount = 0").get().n, 1);
+  assert.equal(db.prepare("SELECT SUM(CASE kind WHEN 'purchase' THEN amount ELSE -amount END) b FROM vendor_entries").get().b, 400);
 });

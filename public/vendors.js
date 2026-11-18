@@ -188,7 +188,7 @@ export function vendorsView() {
       rows.push(h('tr', {},
         h('td', { 'data-label': '날짜' }, formatDate(e.date)),
         h('td', { 'data-label': '내용' }, e.description || (e.kind === 'payment' ? '결제' : '')),
-        h('td', { class: 'num', 'data-label': '입고액' }, isIn ? (e.kind === 'adjust' ? signed(e.amount) : won(e.amount)) : ''),
+        h('td', { class: 'num', 'data-label': '입고액' }, isIn && e.amount ? (e.kind === 'adjust' ? signed(e.amount) : won(e.amount)) : ''),
         h('td', { class: 'num', 'data-label': '반품액' }, e.kind === 'return' ? won(e.amount) : ''),
         h('td', { class: 'num', 'data-label': '결제액' }, e.kind === 'payment' ? won(e.amount) : ''),
         h('td', { class: `num ${e.balance < 0 ? 'neg' : ''}`, 'data-label': '잔고' }, won(e.balance)),

@@ -44,11 +44,11 @@ export function importCard() {
     });
     const lines = [];
     if (s.skipped.length) lines.push(`제외: ${s.skipped.map((x) => x.sheet).join(', ')}`);
-    if (s.hospital) lines.push(`병원 외상(한사랑의원): 엑셀 ${s.hospital.sourceRows}줄 → 앱 장부 ${s.hospital.entries}줄 (같은 줄 5,000원 결제를 할인으로 합친 ${s.hospital.merged}건) + 미리 가져간 조제약 기록 ${s.hospital.zero}건 (금액 없는 품목 줄), 단가표 ${s.hospital.products}개, 잔고 ${won(s.hospital.computed)}원 (앱 현재 ${won(s.hospital.app)}원${s.hospital.app === s.hospital.excel ? ', 일치' : ', 차이 있음'})${s.hospital.mismatch ? ` (엑셀 ${won(s.hospital.excel)}원과 다름 → 엑셀 기준으로 맞춤)` : ' (엑셀과 일치)'}`);
+    if (s.hospital) lines.push(`병원 외상(한사랑의원): 엑셀 ${s.hospital.sourceRows}줄 → 앱 ${s.hospital.entries}줄 (같은 줄 5,000원 결제를 할인으로 합친 ${s.hospital.merged}건, 금액 없는 품목 줄 ${s.hospital.zero}줄은 금액 없이 포함), 단가표 ${s.hospital.products}개, 잔고 ${won(s.hospital.computed)}원 (앱 현재 ${won(s.hospital.app)}원${s.hospital.app === s.hospital.excel ? ', 일치' : ', 차이 있음'})${s.hospital.mismatch ? ` (엑셀 ${won(s.hospital.excel)}원과 다름 → 엑셀 기준으로 맞춤)` : ' (엑셀과 일치)'}`);
     if (s.credits) lines.push(`환자 외상: ${s.credits.rows}건 (미완불 ${s.credits.open}건, ${won(s.credits.openTotal)}원) · 앱 현재 미완불 ${s.credits.appOpen}건, ${won(s.credits.appOpenTotal)}원${s.credits.appOpen === s.credits.open && s.credits.appOpenTotal === s.credits.openTotal ? ' (일치)' : ' (차이 있음)'}`);
     out.replaceChildren(
       h('table', {},
-        h('thead', {}, h('tr', {}, ['제약회사', '엑셀 줄 → 앱 줄', '금액 없는 줄(제외)', '계산 잔고', '엑셀 잔고', '앱 현재 잔고', '차이', '다를 때', ''].map((t) => h('th', {}, t)))),
+        h('thead', {}, h('tr', {}, ['제약회사', '엑셀 줄 → 앱 줄', '그중 금액 없는 줄', '계산 잔고', '엑셀 잔고', '앱 현재 잔고', '차이', '다를 때', ''].map((t) => h('th', {}, t)))),
         h('tbody', {}, rows)),
       h('ul', {}, lines.map((l) => h('li', {}, l))),
       h('label', { class: 'check resetcheck' }, resetBox, '기존 장부를 모두 지우고 처음부터 다시 가져오기 (전환할 때)'),
