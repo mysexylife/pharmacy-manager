@@ -13,6 +13,14 @@ export const cell = (label, ...kids) => h('div', { class: 'cell', 'data-label': 
 // 잘린 칸의 전체 글자 보기 창 (한 번에 하나만, 바깥을 누르거나 Esc·스크롤하면 닫힘)
 let reveal = null;
 function closeReveal() { reveal?.remove(); reveal = null; }
+function openReveal(anchor, text) {
+  closeReveal();
+  const r = anchor.getBoundingClientRect();
+  reveal = h('div', { class: 'reveal', role: 'tooltip' }, text);
+  reveal.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - 380))}px`;
+  reveal.style.top = `${r.bottom + 2}px`;
+  document.body.append(reveal);
+}
 document.addEventListener('pointerdown', (e) => { if (reveal && !reveal.contains(e.target) && !e.target.closest?.('.ledger td')) closeReveal(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeReveal(); });
 window.addEventListener('scroll', closeReveal, { passive: true });
@@ -91,11 +99,16 @@ export function sheet({ cols, heads, rows, addCells, focusEl, className = '', fi
     if (!td || e.target.closest('input, button, label, a, select')) return;
     closeReveal();
     if (card.classList.contains('stack') || td.scrollWidth <= td.clientWidth + 1) return;
-    const r = td.getBoundingClientRect();
-    reveal = h('div', { class: 'reveal', role: 'tooltip' }, td.textContent.trim());
-    reveal.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - 380))}px`;
-    reveal.style.top = `${r.bottom + 2}px`;
-    document.body.append(reveal);
+    openReveal(td, td.textContent.trim());
+  });
+  // 직접 고치는 글자 칸(비고 등)은 눌러서 글을 고치는 동안 전체 글자를 아래에 띄워 보여 준다
+  table.tBodies[0].addEventListener('focusin', (e) => {
+    const el = e.target;
+    if (el.tagName !== 'INPUT' || el.type !== 'text' || el.scrollWidth <= el.clientWidth + 1 || card.classList.contains('stack')) return;
+    openReveal(el, el.value);
+    const sync = () => { if (el.scrollWidth > el.clientWidth + 1 || el.value) openReveal(el, el.value); };
+    el.addEventListener('input', sync);
+    el.addEventListener('blur', () => { el.removeEventListener('input', sync); closeReveal(); }, { once: true });
   });
   // 카드 폭이 열들이 들어갈 최소 폭보다 좁아지면 "카드형"(폰 모양)으로 바꾼다. 창 크기가 아니라 실제 표 폭을 기준으로 한다.
   const minWidth = specs.reduce((n, c) => n + (c.fixed ?? c.min * SHRINK), 0) + 24;

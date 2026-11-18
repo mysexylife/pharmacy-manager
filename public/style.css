@@ -559,3 +559,6 @@ tr[hidden] { display: none !important; }
 .hospsheet .addbar input[type=text] { padding: 2px 4px; font-size: 13.5px; }
 .hospsheet .ledger tbody td[data-label="잔고"] { font-size: 15px; }
 .hospsheet .datewrap input[type=text] { min-width: 0; }
+
+/* 환자 외상액 칸: 10만원 단위(100,000)가 잘리지 않게 */
+.creditsheet .ledger.fixed td input.amt { padding: 2px 2px; font-variant-numeric: tabular-nums; }
