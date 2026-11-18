@@ -242,6 +242,13 @@ test('제약회사 목록은 가나다순', async () => {
   assert.deepEqual(pick((await ok('GET', '/api/due')).rows), ['가정렬', '나정렬', '하정렬']);
 });
 
+test('장부를 모두 지우고 가져오기는 비밀번호와 확인 글자가 맞아야 한다', async () => {
+  const before = (await ok('GET', '/api/vendors')).length;
+  assert.equal((await call('POST', '/api/import/commit', { files: ['x'], reset: true, password: '틀린비밀번호', confirm: '초기화' })).status, 400);
+  assert.equal((await call('POST', '/api/import/commit', { files: ['x'], reset: true, password: 'long-enough-pass', confirm: '' })).status, 400);
+  assert.equal((await ok('GET', '/api/vendors')).length, before); // 아무것도 지워지지 않았다
+});
+
 // ---------------------------------------------------------------- 병원 외상
 test('병원 단가표는 이름순(가나다)으로 나온다', async () => {
   for (const name of ['타이레놀', '가스활명수', '나오덤']) await ok('POST', '/api/hospital-products', { name, price: 1000 }, 201);

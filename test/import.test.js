@@ -152,3 +152,30 @@ test('결제란에 상품명이 적힌 줄은 반품, 할인·정정 줄은 그�
   assert.deepEqual(v.entries.filter((e) => e.kind === 'payment').map((e) => e.description), ['매출할인', '결제']);
   assert.equal(v.computed, 800);
 });
+
+test('reset: 기존 장부 내역을 지우고 새로 가져오되, 제약회사 회전 개월 수는 남긴다', () => {
+  const buf1 = book([{ name: '고려', rows: [HEAD, [null, 2025, D('2025-03-05'), '약A', 500, null, 500]] }]);
+  const buf2 = book([{ name: '고려', rows: [HEAD, [null, 2025, D('2025-04-01'), '약B', 700, null, 700]] }]);
+  const db = openDb(':memory:');
+  commit(db, buildPlan([buf1]));
+  db.prepare("UPDATE vendors SET rotation_months = 4 WHERE name = '고려제약'").run();
+  db.prepare("INSERT INTO credits (date, name, amount) VALUES ('2026-01-01', '시험', 100)").run();
+  // reset 없이는 이미 있는 제약회사를 건너뛴다
+  assert.deepEqual(commit(db, buildPlan([buf2])).skippedExisting, ['고려제약']);
+  const r = commit(db, buildPlan([buf2]), { reset: true });
+  assert.equal(r.reset, true);
+  const items = db.prepare('SELECT description FROM vendor_entries').all().map((x) => x.description);
+  assert.deepEqual(items, ['약B']);
+  assert.equal(db.prepare("SELECT rotation_months FROM vendors WHERE name = '고려제약'").get().rotation_months, 4);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM credits').get().n, 0);
+});
+
+test('reset 중 가져오기가 실패하면 지운 것도 되돌린다', () => {
+  const buf1 = book([{ name: '고려', rows: [HEAD, [null, 2025, D('2025-03-05'), '약A', 500, null, 500]] }]);
+  const db = openDb(':memory:');
+  commit(db, buildPlan([buf1]));
+  const bad = buildPlan([buf1]);
+  bad.vendors[0].entries[0].kind = 'broken'; // CHECK 제약에 걸려 실패
+  assert.throws(() => commit(db, bad, { reset: true }));
+  assert.deepEqual(db.prepare('SELECT description FROM vendor_entries').all().map((x) => x.description), ['약A']); // 지운 것도 취소되어 그대로
+});

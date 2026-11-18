@@ -318,9 +318,16 @@ export function summarize(plan) {
 }
 
 // ---- DB에 쓰기 -----------------------------------------------------------
-export function commit(db, plan, { useComputed = [] } = {}) {
-  const result = { vendors: 0, entries: 0, skippedExisting: [], hospital: false, credits: 0 };
+// reset: 가져오기 전에 장부 내역(제약회사 입고·결제·반품·차용·메모, 병원 외상, 환자 외상)을 모두 지운다.
+// 제약회사 이름과 회전 개월 수, 병원 단가표, 설정, 계정은 그대로 둔다. 지우기와 가져오기는 한 번에 처리되어서
+// 가져오다 오류가 나면 지운 것도 함께 취소된다.
+export function commit(db, plan, { useComputed = [], reset = false } = {}) {
+  const result = { vendors: 0, entries: 0, skippedExisting: [], hospital: false, credits: 0, reset: false };
   tx(db, () => {
+    if (reset) {
+      for (const t of ['vendor_entries', 'vendor_returns', 'vendor_loans', 'vendor_notes', 'hospital_entries', 'credits']) db.exec(`DELETE FROM ${t}`);
+      result.reset = true;
+    }
     for (const v of plan.vendors) {
       const found = db.prepare('SELECT id FROM vendors WHERE name = ?').get(v.name);
       let vendorId = found?.id;

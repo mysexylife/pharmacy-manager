@@ -526,3 +526,6 @@ tr[hidden] { display: none !important; }
 @media (min-width: 901px) {
   main { padding-top: 6px; }
 }
+.btn.dangerfill { background: var(--danger); border-color: var(--danger); color: #fff; }
+.resetcheck { margin-top: 12px; }
+.resetfields { margin: 8px 0; padding: 12px; border: 1px solid var(--danger); border-radius: 10px; background: var(--danger-bg); }

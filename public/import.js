@@ -20,6 +20,13 @@ export function importCard() {
   };
 
   const show = (s) => {
+    const resetBox = h('input', { type: 'checkbox', 'aria-label': '기존 장부를 모두 지우고 다시 가져오기' });
+    const pw = h('input', { type: 'password', autocomplete: 'current-password', placeholder: '내 비밀번호', 'aria-label': '비밀번호' });
+    const confirmText = h('input', { type: 'text', autocomplete: 'off', placeholder: '초기화', 'aria-label': '확인 글자' });
+    const resetFields = h('div', { class: 'resetfields', hidden: true },
+      h('p', { class: 'muted' }, '제약회사 입고·결제·반품·차용·메모, 병원 외상, 환자 외상 내역이 모두 지워지고 엑셀 내용으로 바뀝니다. 제약회사 이름과 회전 개월 수, 병원 단가표, 설정은 그대로입니다. 지우기 전에 서버에 백업이 자동으로 만들어지고, 가져오다 오류가 나면 아무것도 바뀌지 않습니다.'),
+      h('div', { class: 'row' }, pw, confirmText), h('p', { class: 'muted small' }, '비밀번호와, 확인 칸에 초기화 라고 입력하세요.'));
+    const commitBtn = h('button', { class: 'btn', type: 'button' }, '이대로 가져오기');
     const modes = new Map(); // 제약회사 시트 → 'excel' | 'calc'
     const rows = s.vendors.map((v) => {
       const sel = h('select', { disabled: !v.mismatch, onchange: () => modes.set(v.sheet, sel.value) },
@@ -40,14 +47,28 @@ export function importCard() {
         h('thead', {}, h('tr', {}, ['제약회사', '줄 수', '계산 잔고', '엑셀 잔고', '차이', '다를 때', ''].map((t) => h('th', {}, t)))),
         h('tbody', {}, rows)),
       h('ul', {}, lines.map((l) => h('li', {}, l))),
+      h('label', { class: 'check resetcheck' }, resetBox, '기존 장부를 모두 지우고 처음부터 다시 가져오기 (전환할 때)'),
+      resetFields,
       h('p', { class: 'muted' }, '차이가 있는 제약회사는 마지막 줄에 "조정" 한 줄을 넣어 엑셀의 마지막 잔고와 맞춥니다. 이미 장부가 들어 있는 제약회사는 건너뜁니다.'),
-      h('button', { class: 'btn', type: 'button', onclick: guard(err, async () => {
+      commitBtn);
+    resetBox.addEventListener('change', () => {
+      resetFields.hidden = !resetBox.checked;
+      commitBtn.textContent = resetBox.checked ? '모두 지우고 가져오기' : '이대로 가져오기';
+      commitBtn.classList.toggle('dangerfill', resetBox.checked);
+    });
+    commitBtn.onclick = guard(err, async () => {
         const useComputed = [...modes].filter(([, m]) => m === 'calc').map(([k]) => k);
-        const r = await api('POST', '/api/import/commit', { files: await readFiles(), useComputed });
+        const body = { files: await readFiles(), useComputed };
+        if (resetBox.checked) {
+          if (!window.confirm('제약회사 장부, 병원 외상, 환자 외상의 기존 내역을 모두 지우고 엑셀 내용으로 바꿉니다. 계속할까요?')) return;
+          Object.assign(body, { reset: true, password: pw.value, confirm: confirmText.value.trim() });
+        }
+        const r = await api('POST', '/api/import/commit', body);
         out.replaceChildren(h('p', {}, `가져왔어요: 제약회사 ${r.vendors}곳, 환자 외상 ${r.credits}건${r.hospital ? ', 병원 외상' : ''}.`
+          + (r.reset ? ` 기존 내역은 지우고 새로 넣었습니다. 지우기 전 백업: 서버의 backups 폴더(${r.backup ?? '없음'})` : '')
           + (r.skippedExisting.length ? ` 이미 있어 건너뜀: ${r.skippedExisting.join(', ')}` : '')));
         toast('가져왔어요');
-      }) }, '이대로 가져오기'));
+    });
   };
 
   return h('div', { class: 'card' }, h('h2', {}, '엑셀에서 가져오기'),

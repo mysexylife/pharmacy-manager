@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { readFileSync, unlinkSync } from 'node:fs';
+import { readFileSync, unlinkSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { buildPlan, summarize, commit as commitImport } from './import.js';
 import { audit, tx, getSetting, setSetting, DEFAULT_SETTINGS } from './db.js';
 import {
@@ -320,9 +320,29 @@ export function buildRoutes(db, ctx = {}) {
     },
     {
       method: 'POST', path: '/api/import/commit', access: 'user', bodyLimit: 40 * 1024 * 1024,
-      handler: ({ body }) => {
+      handler: ({ user, body }) => {
         const useComputed = Array.isArray(body.useComputed) ? body.useComputed.filter((x) => typeof x === 'string') : [];
-        return { body: commitImport(db, readPlan(body), { useComputed }) };
+        const reset = body.reset === true;
+        let backup = null;
+        if (reset) {
+          // 장부를 모두 지우고 가져오는 경우: 비밀번호와 확인 글자를 확인하고, 지우기 전에 서버 안에 백업을 만든다.
+          const row = q('SELECT * FROM users WHERE id = ?').get(user.id);
+          if (!verifyPassword(String(body.password ?? ''), row.pw_hash)) throw new HttpError(400, '비밀번호가 맞지 않습니다');
+          if (body.confirm !== '초기화') throw new HttpError(400, '확인 칸에 "초기화"라고 입력하세요');
+        }
+        const plan = readPlan(body); // 파일이 잘못됐으면 여기서 멈추므로 아무것도 지워지지 않는다
+        if (reset) {
+          const file = q("SELECT file FROM pragma_database_list WHERE name = 'main'").get()?.file;
+          if (file) {
+            const dir = join(dirname(file), 'backups');
+            mkdirSync(dir, { recursive: true });
+            backup = join(dir, `before-reset-${new Date().toISOString().replace(/[:.]/g, '-')}.db`);
+            db.exec(`VACUUM INTO '${backup.replace(/'/g, "''")}'`);
+          }
+          audit(db, 'import.reset', backup ?? 'memory');
+        }
+        const result = commitImport(db, plan, { useComputed, reset });
+        return { body: { ...result, backup: backup ? backup.split(/[\\/]/).pop() : null } };
       },
     },
 
