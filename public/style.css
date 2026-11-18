@@ -595,3 +595,6 @@ tr[hidden] { display: none !important; }
 .retdone strong { color: var(--ink); }
 
 .retstep .amt.need { border-color: var(--danger); background: var(--danger-bg); }
+
+.retfinish { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.retfinish[hidden] { display: none; }

@@ -160,37 +160,35 @@ export function vendorsView() {
         rowMenu(act(async () => { if (confirmDelete(`반품 ${r.item}`)) await deleted('vendor_returns', r.id, `반품 ${r.item}`); })));
       let step = null;
       if (!r.done) { // 요청 확인을 건너뛰고 바로 처리 완료해도 된다
+        // ④ 반품이 회수되고 처리된 명세서를 받으면 "처리 완료"를 체크하고, 나타나는 칸에 반품 금액(정확히)과 처리 날짜를 쓰고 확인한다.
+        const amountInput = h('input', { class: 'amt', type: 'text', inputmode: 'numeric', autocomplete: 'off', 'aria-label': `${r.item} 반품액`, value: r.amount || '', placeholder: '반품액' });
         const dateText = h('input', { class: 'donedate', type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder: '처리 날짜(비우면 오늘)', 'aria-label': `${r.item} 처리 완료 날짜` });
+        const box = h('input', { type: 'checkbox', 'aria-label': `${r.item} 처리 완료` });
+        const panel = h('span', { class: 'retfinish', hidden: true });
+        const close = () => { box.checked = false; panel.hidden = true; amountInput.classList.remove('need'); };
+        const finish = async () => {
+          try {
+            const typed = dateText.value.trim();
+            const iso = typed ? parseDate(typed) : null;
+            if (typed && !iso) throw new Error('날짜를 다시 확인하세요 (예: 26.10.31)');
+            if (!(moneyOf(amountInput.value) > 0)) { // 정확한 금액이 없으면 처리 완료로 넘어가지 않는다
+              amountInput.classList.add('need');
+              amountInput.focus();
+              throw new Error('반품 금액을 정확히 입력해야 처리 완료할 수 있어요');
+            }
+            amountInput.classList.remove('need');
+            await api('PATCH', url, { amount: moneyOf(amountInput.value) }); // 입력한 금액을 먼저 저장
+            await patched(url, { done: false }, iso ? { done: true, done_date: iso } : { done: true }, `반품 ${r.item} 처리 완료`);
+            toast('처리 완료로 기록했어요');
+            await refresh();
+          } catch (ex) { toast(ex.message, 'error'); }
+        };
+        for (const el of [amountInput, dateText]) el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); finish(); } else if (e.key === 'Escape') { e.stopPropagation(); close(); } });
+        box.addEventListener('change', () => { panel.hidden = !box.checked; if (box.checked) amountInput.focus(); else close(); });
+        panel.append(amountInput, dateText, h('button', { type: 'button', class: 'btn small', onclick: finish }, '확인'),
+          h('button', { type: 'button', class: 'btn ghost small', onclick: close }, '취소'));
         step = h('div', { class: 'retstep' },
-          h('span', { class: 'muted' }, '명세서를 받으면'),
-          // 금액은 칸을 벗어나면 조용히 저장하고, 화면을 다시 그리지 않는다 (옆의 날짜 칸에 이어서 쓸 수 있게)
-          h('input', { class: 'amt', type: 'text', inputmode: 'numeric', 'aria-label': `${r.item} 반품액`, value: r.amount || '', placeholder: '반품액',
-            onchange: async (e) => {
-              try { const n = moneyOf(e.target.value); await api('PATCH', url, { amount: n }); r.amount = n; } catch (ex) { toast(ex.message, 'error'); }
-            } }),
-          dateText,
-          h('label', { class: 'check' }, h('input', { type: 'checkbox', 'aria-label': `${r.item} 처리 완료`,
-            onchange: async (e) => {
-              const box = e.target;
-              try {
-                const typed = dateText.value.trim();
-                const iso = typed ? parseDate(typed) : null;
-                if (typed && !iso) throw new Error('날짜를 다시 확인하세요 (예: 26.10.31)');
-                const amountInput = box.closest('.retstep').querySelector('.amt');
-                const amountText = amountInput.value;
-                if (!(moneyOf(amountText) > 0)) { // 정확한 금액이 없으면 처리 완료로 넘어가지 않는다
-                  amountInput.classList.add('need');
-                  amountInput.focus();
-                  throw new Error('반품 금액을 정확히 입력해야 처리 완료할 수 있어요');
-                }
-                amountInput.classList.remove('need');
-                if (moneyOf(amountText) !== (r.amount || 0)) await api('PATCH', url, { amount: amountText }); // 입력한 금액을 먼저 저장
-                const after = iso ? { done: true, done_date: iso } : { done: true };
-                await patched(url, { done: false }, after, `반품 ${r.item} 처리 완료`);
-                toast('처리 완료로 기록했어요');
-                await refresh();
-              } catch (ex) { box.checked = false; toast(ex.message, 'error'); }
-            } }), '처리 완료'));
+          h('label', { class: 'check' }, box, h('span', { class: 'muted' }, '처리 완료 (처리된 명세서를 받으면)')), panel);
       }
       return h('li', { class: `retitem ${r.done ? 'done' : ''}` }, head, step);
     }, 'returns');
