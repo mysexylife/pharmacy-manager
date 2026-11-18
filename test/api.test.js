@@ -186,6 +186,11 @@ test('반품 2단계: 요청 확인 → 금액을 적고 처리 완료(날짜가
   assert.deepEqual([entry.date, entry.amount, entry.qty], ['2026-11-15', 30000, 3]); // 처리 완료 날짜로 장부에
   await ok('PATCH', `/api/returns/${ret}`, { done: false });
   assert.equal((await ok('GET', `/api/vendors/${v}/ledger`)).entries.some((e) => e.kind === 'return'), false);
+  // 요청 확인을 건너뛰고 바로 처리 완료해도 된다 (요청 확인 날짜는 비어 있다)
+  const skip = (await ok('POST', `/api/vendors/${v}/returns`, { date: '26.11.05', item: '약B', qty: 1, amount: 5000 }, 201)).id;
+  await ok('PATCH', `/api/returns/${skip}`, { done: true, done_date: '26.11.06' });
+  const row = (await ok('GET', `/api/vendors/${v}/ledger`)).returns.find((x) => x.id === skip);
+  assert.deepEqual([row.requested, row.requested_date, row.done, row.done_date], [0, null, 1, '2026-11-06']);
 });
 
 test('반품: 금액이 없으면 처리 완료를 체크할 수 없고, 완료된 반품은 고칠 수 없다', async () => {

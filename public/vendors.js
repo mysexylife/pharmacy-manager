@@ -155,11 +155,11 @@ export function vendorsView() {
       const head = h('div', { class: 'retmain' },
         h('label', { class: 'check' }, reqBox,
           h('span', { class: 'ptext' }, `${formatDate(r.date)} ${r.item}`, r.qty ? h('small', {}, ` · ${r.qty}개`) : null,
-            r.requested && r.requested_date ? h('small', {}, ` · 요청 확인 ${formatDate(r.requested_date)}`) : h('small', { class: 'todo' }, ' · 요청 확인 전'))),
+            r.requested && r.requested_date ? h('small', {}, ` · 요청 확인 ${formatDate(r.requested_date)}`) : (r.done ? null : h('small', { class: 'todo' }, ' · 요청 확인 전')))),
         r.done ? h('span', { class: 'retdone' }, h('b', {}, `${won(r.amount)}원`), h('small', {}, ` 처리 완료 `), h('strong', {}, formatDate(r.done_date))) : null,
         rowMenu(act(async () => { if (confirmDelete(`반품 ${r.item}`)) await deleted('vendor_returns', r.id, `반품 ${r.item}`); })));
       let step = null;
-      if (r.requested && !r.done) {
+      if (!r.done) { // 요청 확인을 건너뛰고 바로 처리 완료해도 된다
         const dateText = h('input', { class: 'donedate', type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder: '처리 날짜(비우면 오늘)', 'aria-label': `${r.item} 처리 완료 날짜` });
         step = h('div', { class: 'retstep' },
           h('span', { class: 'muted' }, '명세서를 받으면'),

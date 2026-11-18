@@ -517,7 +517,6 @@ export function buildRoutes(db, ctx = {}) {
           if (body.done && !fresh.done) {
             if (!fresh.amount) throw new HttpError(400, '반품액을 먼저 입력하세요');
             const doneDate = body.done_date ? date(body.done_date, '처리 날짜') : todayKST();
-            if (!fresh.requested) q('UPDATE vendor_returns SET requested = 1, requested_date = ? WHERE id = ?').run(doneDate, r.id);
             q('UPDATE vendor_returns SET done = 1, done_date = ? WHERE id = ?').run(doneDate, r.id);
             q('INSERT INTO vendor_entries (vendor_id, date, kind, description, amount, return_id, qty) VALUES (?, ?, ?, ?, ?, ?, ?)')
               .run(r.vendor_id, doneDate, 'return', fresh.item, fresh.amount, r.id, fresh.qty);
