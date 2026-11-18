@@ -33,20 +33,22 @@ export function importCard() {
     const rows = s.vendors.map((v) => {
       const sel = h('select', { disabled: !v.mismatch, onchange: () => modes.set(v.sheet, sel.value) },
         h('option', { value: 'excel' }, '엑셀 잔고에 맞춤'), h('option', { value: 'calc' }, '계산값 유지'));
+      const appCell = v.app == null ? h('td', { class: 'num muted' }, '앱에 없음')
+        : h('td', { class: 'num' }, `${won(v.app)} `, v.app === v.excel ? badge('일치') : badge(`차이 ${signed(v.excel - v.app)}`, 'warn'));
       return h('tr', {},
         h('td', {}, v.name), h('td', { class: 'num' }, `${v.entries + v.returns}`),
-        h('td', { class: 'num' }, won(v.computed)), h('td', { class: 'num' }, won(v.excel)),
+        h('td', { class: 'num' }, won(v.computed)), h('td', { class: 'num' }, won(v.excel)), appCell,
         h('td', { class: 'num' }, v.mismatch ? badge(signed(v.diff), 'warn') : '일치'),
         h('td', {}, v.mismatch ? sel : ''),
         h('td', { class: 'muted' }, v.yearFixes ? `연도 보정 ${v.yearFixes}건` : ''));
     });
     const lines = [];
     if (s.skipped.length) lines.push(`제외: ${s.skipped.map((x) => x.sheet).join(', ')}`);
-    if (s.hospital) lines.push(`병원 외상(한사랑의원): ${s.hospital.entries}줄, 단가표 ${s.hospital.products}개, 잔고 ${won(s.hospital.computed)}원${s.hospital.mismatch ? ` (엑셀 ${won(s.hospital.excel)}원과 다름 → 엑셀 기준으로 맞춤)` : ' (엑셀과 일치)'}`);
-    if (s.credits) lines.push(`환자 외상: ${s.credits.rows}건 (미완불 ${s.credits.open}건, ${won(s.credits.openTotal)}원)`);
+    if (s.hospital) lines.push(`병원 외상(한사랑의원): ${s.hospital.entries}줄, 단가표 ${s.hospital.products}개, 잔고 ${won(s.hospital.computed)}원 (앱 현재 ${won(s.hospital.app)}원${s.hospital.app === s.hospital.excel ? ', 일치' : ', 차이 있음'})${s.hospital.mismatch ? ` (엑셀 ${won(s.hospital.excel)}원과 다름 → 엑셀 기준으로 맞춤)` : ' (엑셀과 일치)'}`);
+    if (s.credits) lines.push(`환자 외상: ${s.credits.rows}건 (미완불 ${s.credits.open}건, ${won(s.credits.openTotal)}원) · 앱 현재 미완불 ${s.credits.appOpen}건, ${won(s.credits.appOpenTotal)}원${s.credits.appOpen === s.credits.open && s.credits.appOpenTotal === s.credits.openTotal ? ' (일치)' : ' (차이 있음)'}`);
     out.replaceChildren(
       h('table', {},
-        h('thead', {}, h('tr', {}, ['제약회사', '줄 수', '계산 잔고', '엑셀 잔고', '차이', '다를 때', ''].map((t) => h('th', {}, t)))),
+        h('thead', {}, h('tr', {}, ['제약회사', '줄 수', '계산 잔고', '엑셀 잔고', '앱 현재 잔고', '차이', '다를 때', ''].map((t) => h('th', {}, t)))),
         h('tbody', {}, rows)),
       h('ul', {}, lines.map((l) => h('li', {}, l))),
       h('label', { class: 'check resetcheck' }, resetBox, '기존 장부를 모두 지우고 처음부터 다시 가져오기 (전환할 때)'),

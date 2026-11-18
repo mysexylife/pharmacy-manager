@@ -316,7 +316,20 @@ export function buildRoutes(db, ctx = {}) {
     // ===== 엑셀 가져오기 ====================================================
     {
       method: 'POST', path: '/api/import/preview', access: 'user', bodyLimit: 40 * 1024 * 1024,
-      handler: ({ body }) => ({ body: summarize(readPlan(body)) }),
+      // 미리보기: 엑셀 내용과 함께 "지금 앱에 들어 있는 숫자"도 같이 보여 줘서, 앱이 엑셀과 맞는지 바로 대조할 수 있다.
+      handler: ({ body }) => {
+        const s = summarize(readPlan(body));
+        const app = new Map(q(`SELECT v.name, COALESCE(SUM(CASE e.kind WHEN 'purchase' THEN e.amount WHEN 'adjust' THEN e.amount ELSE -e.amount END), 0) AS balance
+          FROM vendors v LEFT JOIN vendor_entries e ON e.vendor_id = v.id AND e.deleted_at IS NULL GROUP BY v.id`).all().map((r) => [r.name, r.balance]));
+        s.vendors = s.vendors.map((v) => ({ ...v, app: app.has(v.name) ? app.get(v.name) : null }));
+        if (s.hospital) s.hospital.app = q('SELECT COALESCE(SUM(billed - paid), 0) AS n FROM hospital_entries WHERE deleted_at IS NULL').get().n;
+        if (s.credits) {
+          const c = q('SELECT COUNT(*) AS n, COALESCE(SUM(amount), 0) AS total FROM credits WHERE paid = 0 AND deleted_at IS NULL').get();
+          s.credits.appOpen = c.n;
+          s.credits.appOpenTotal = c.total;
+        }
+        return { body: s };
+      },
     },
     {
       method: 'POST', path: '/api/import/commit', access: 'user', bodyLimit: 40 * 1024 * 1024,
