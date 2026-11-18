@@ -577,7 +577,7 @@ export function buildRoutes(db, ctx = {}) {
       },
     },
 
-    // ---- 확인 메모 -----------------------------------------------------------
+    // ---- 특이사항 메모 -----------------------------------------------------------
     {
       method: 'POST', path: '/api/vendors/:id/notes', access: 'user',
       handler: ({ params, body }) => {

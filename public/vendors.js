@@ -102,7 +102,7 @@ export function vendorsView() {
       h('span', { class: 'yearsel', role: 'tab', 'aria-selected': String(isYears) }, select));
   }
 
-  // ---- 반품 · 차용 · 확인 메모: 내역표 위에 작게 ---------------------------------
+  // ---- 반품 · 차용 · 특이사항 메모: 내역표 위에 작게 ---------------------------------
   // 끝난 것은 최근 2건만 흐리게 보이고, 나머지는 눌러야 보인다.
   // 끝난 것은 기본으로 숨긴다 (반품은 전부, 차용·메모는 최근 2건만 흐리게). 눌러야 보인다.
   const KEEP_DONE = { returns: 0, loans: 2, notes: 2 };
@@ -147,7 +147,7 @@ export function vendorsView() {
       form.reset();
       close();
       await refresh();
-    }) }, field('확인 메모', 'body', { cls: 'wide', required: true, placeholder: '예: 반품 처리 확인, 제약사 잔고와 대조' }),
+    }) }, field('특이사항 메모', 'body', { cls: 'wide', required: true, placeholder: '예: 결제 전 잔고 대조 필요, 담당자 연락처 변경' }),
     h('button', { class: 'btn', type: 'submit' }, '추가')));
 
     // 반품: 처음에는 품목과 수량만 적어 두고, 줄마다 [반품 요청] [처리 완료] [반품 금액]만 있다.
@@ -208,7 +208,7 @@ export function vendorsView() {
     return h('div', { class: 'card process' },
       column('반품', '반품 요청 → 처리 완료·금액', addReturn, returns),
       column('차용', '체크 = 반환 완료', addLoan, loans),
-      column('확인 메모', null, addNote, notes));
+      column('특이사항 메모', null, addNote, notes));
   }
 
   // ---- 내역표: 오래된 순서, 맨 아래에 입력 행 ------------------------------------

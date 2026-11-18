@@ -112,7 +112,7 @@ export function dueView() {
           await api('POST', `/api/vendors/${r.id}/notes`, { body: fd.get('body') });
           form.reset();
           await load();
-        }) }, field('확인 메모', 'body', { cls: 'wide', required: true, placeholder: '예: 제약사 잔고와 대조' }),
+        }) }, field('특이사항 메모', 'body', { cls: 'wide', required: true, placeholder: '예: 결제 전 잔고 대조 필요' }),
         h('button', { class: 'btn ghost', type: 'submit' }, '메모 추가'))));
   }
 

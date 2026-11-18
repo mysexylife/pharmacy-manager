@@ -230,7 +230,7 @@ test('차용: 반환 안 된 것은 모아 보이고, 반환하면 날짜가 기
   assert.equal(led.loans[0].returned_date, '2026-10-25');
 });
 
-test('확인 메모는 장부와 결제 대상 화면에서 같은 데이터로 보인다', async () => {
+test('특이사항 메모는 장부와 결제 대상 화면에서 같은 데이터로 보인다', async () => {
   const v = (await ok('POST', '/api/vendors', { name: '메모제약' }, 201)).id;
   const note = (await ok('POST', `/api/vendors/${v}/notes`, { body: '제약사 잔고와 대조' }, 201)).id;
   assert.equal((await ok('GET', '/api/due')).notes.some((n) => n.id === note), true);
