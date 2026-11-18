@@ -610,3 +610,6 @@ tr[hidden] { display: none !important; }
 .retctl > * { flex: 0 0 auto; }
 .plist .retctl > * { flex: 0 0 auto; min-width: auto; }
 .plist .retctl .check { align-items: center; }
+
+.chklabel { font-size: 12px; font-weight: 600; color: var(--brand); background: var(--brand-soft); border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+.plist .check .chklabel { margin-top: 1px; }

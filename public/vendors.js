@@ -104,14 +104,15 @@ export function vendorsView() {
 
   // ---- 반품 · 차용 · 특이사항 메모: 내역표 위에 작게 ---------------------------------
   // 끝난 것은 최근 2건만 흐리게 보이고, 나머지는 눌러야 보인다.
-  // 끝난 것은 기본으로 숨긴다 (반품은 전부, 차용·메모는 최근 2건만 흐리게). 눌러야 보인다.
-  const KEEP_DONE = { returns: 0, loans: 2, notes: 2 };
+  // 끝난 것(처리 완료·반환·확인)은 기본으로 모두 숨기고, 버튼을 눌러야 보인다.
+  const KEEP_DONE = { returns: 0, loans: 0, notes: 0 };
+  const DONE_LABEL = { returns: '처리 완료', loans: '반환 완료', notes: '확인한 메모' };
   function compactList(items, isDone, render, key) {
     const open = items.filter((x) => !isDone(x));
     const done = items.filter(isDone);
-    const keep = KEEP_DONE[key] ?? 2;
+    const keep = KEEP_DONE[key] ?? 0;
     const shown = showAllDone[key] ? done : done.slice(0, keep);
-    const label = key === 'returns' ? '처리 완료' : '지난 내역';
+    const label = DONE_LABEL[key] ?? '지난 내역';
     return h('div', {},
       (open.length + shown.length) > 0 && h('ul', { class: 'plist items' }, [...open, ...shown].map(render)),
       done.length > keep && h('button', { type: 'button', class: 'linklike', onclick: () => { showAllDone[key] = !showAllDone[key]; loadDetail(); } },
@@ -195,6 +196,7 @@ export function vendorsView() {
     const loans = compactList(d.loans, (l) => l.returned, (l) => h('li', { class: l.returned ? 'done' : '' },
       h('label', { class: 'check' },
         h('input', { type: 'checkbox', checked: !!l.returned, 'aria-label': `${l.item} 반환 완료`, onchange: act((e) => patched(`/api/loans/${l.id}`, { returned: !e.target.checked }, { returned: e.target.checked }, `차용 ${l.item} 반환 표시`)) }),
+        h('span', { class: 'chklabel' }, '반환 체크'),
         h('span', { class: 'ptext' }, `${formatDate(l.date)} ${l.item}`, l.returned && l.returned_date ? h('small', {}, ` · 반환 ${formatDate(l.returned_date)}`) : null)),
       h('b', {}, `${l.qty}개`),
       rowMenu(act(async () => { if (confirmDelete(`차용 ${l.item}`)) await deleted('vendor_loans', l.id, `차용 ${l.item}`); }))), 'loans');
@@ -207,7 +209,7 @@ export function vendorsView() {
 
     return h('div', { class: 'card process' },
       column('반품', '반품 요청 → 처리 완료·금액', addReturn, returns),
-      column('차용', '체크 = 반환 완료', addLoan, loans),
+      column('차용', '반환 체크 = 반환 완료', addLoan, loans),
       column('특이사항 메모', null, addNote, notes));
   }
 
