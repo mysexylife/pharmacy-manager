@@ -63,6 +63,18 @@ export function vendorsView() {
         await refresh();
       }) }, field('제약회사 이름', 'name', { required: true, cls: 'wide' }), h('button', { class: 'btn', type: 'submit' }, '추가')), { ghost: true }));
     applyFilter();
+    scrollListToSelected();
+  }
+
+  // 목록에서 지금 보고 있는 제약회사가 항상 눈에 띄도록 목록을 그 위치로 스크롤한다 (이미 보이면 그대로)
+  function scrollListToSelected() {
+    const ul = listBox.querySelector('.partylist');
+    const cur = ul?.querySelector('button[aria-current="true"]');
+    if (!ul || !cur || !ul.clientHeight) return;
+    const u = ul.getBoundingClientRect();
+    const c = cur.getBoundingClientRect();
+    if (c.top >= u.top && c.bottom <= u.bottom) return;
+    ul.scrollTop += c.top - u.top - (ul.clientHeight - cur.offsetHeight) / 2;
   }
 
   async function loadDetail() {
@@ -296,7 +308,7 @@ export function vendorsView() {
     ];
   }
 
-  refresh();
+  refresh().then(() => requestAnimationFrame(scrollListToSelected));
   return h('div', {},
     pageHead('제약회사 장부', searchBox('제약회사 검색', (v) => { vq = v.trim(); applyFilter(); })),
     h('div', { class: 'split' }, listBox, h('div', {}, err, detail)));
