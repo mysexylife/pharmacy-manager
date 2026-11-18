@@ -180,14 +180,15 @@ export function vendorsView() {
     const rows = [];
     if (d.hasEarlier) {
       rows.push(h('tr', { class: 'opening' },
-        h('td', { 'data-label': '기준' }, '이전 잔액'), h('td', {}, '(이전 내역 합계)'), h('td'), h('td'), h('td'),
+        h('td', { 'data-label': '기준' }, '이전 잔액'), h('td', {}, '(이전 내역 합계)'), h('td'), h('td'), h('td'), h('td'),
         h('td', { class: 'num', 'data-label': '잔고' }, won(d.opening)), h('td')));
     }
     for (const e of entries) {
       const isIn = e.kind === 'purchase' || e.kind === 'adjust';
       rows.push(h('tr', {},
         h('td', { 'data-label': '날짜' }, formatDate(e.date)),
-        h('td', { 'data-label': '내용' }, e.description || (e.kind === 'payment' ? '결제' : '')),
+        h('td', { 'data-label': '품목' }, e.description || (e.kind === 'payment' ? '결제' : '')),
+        h('td', { class: 'num', 'data-label': '수량' }, e.qty ?? ''),
         h('td', { class: 'num', 'data-label': '입고액' }, isIn && e.amount ? (e.kind === 'adjust' ? signed(e.amount) : won(e.amount)) : ''),
         h('td', { class: 'num', 'data-label': '반품액' }, e.kind === 'return' ? won(e.amount) : ''),
         h('td', { class: 'num', 'data-label': '결제액' }, e.kind === 'payment' ? won(e.amount) : ''),
@@ -198,8 +199,8 @@ export function vendorsView() {
     }
     const cells = buildAddRow(v, d);
     return sheet({
-      cols: ['120px', 'minmax(130px, 1.6fr)', 'minmax(92px, 1fr)', 'minmax(80px, 0.8fr)', 'minmax(92px, 1fr)', 'minmax(100px, 1.1fr)', '44px'],
-      heads: [['날짜'], ['내용', false, true], ['입고액', true], ['반품액', true], ['결제액', true], ['잔고', true], ['']], filterKey: `vendor-${v.id}`,
+      cols: ['120px', 'minmax(130px, 1.6fr)', '52px', 'minmax(92px, 1fr)', 'minmax(80px, 0.8fr)', 'minmax(92px, 1fr)', 'minmax(100px, 1.1fr)', '44px'],
+      heads: [['날짜'], ['품목', false, true], ['수량', true], ['입고액', true], ['반품액', true], ['결제액', true], ['잔고', true], ['']], filterKey: `vendor-${v.id}`,
       rows, addCells: cells, focusEl: refs.description,
     });
   }
@@ -207,7 +208,8 @@ export function vendorsView() {
   // 엑셀의 마지막 빈 줄처럼 쓴다. 입고액이나 결제액 중 하나만 적고 Enter. 음수 입고액은 조정으로 기록된다.
   function buildAddRow(v, d) {
     const date = dateInput('date', lastDate);
-    const description = h('input', { name: 'description', type: 'text', autocomplete: 'off', placeholder: '품목명', title: '결제는 비워도 됩니다', 'aria-label': '내용' });
+    const description = h('input', { name: 'description', type: 'text', autocomplete: 'off', placeholder: '품목명', title: '결제는 비워도 됩니다', 'aria-label': '품목' });
+    const qty = h('input', { name: 'qty', type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder: '수량', 'aria-label': '수량' });
     const billed = h('input', { name: 'billed', type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder: '입고액', 'aria-label': '입고액' });
     const paid = h('input', { name: 'paid', type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder: '결제액', 'aria-label': '결제액' });
     const preview = h('span', { class: 'dim' }, '');
@@ -228,7 +230,7 @@ export function vendorsView() {
         const iso = date.value();
         if (!iso) throw new Error('날짜를 다시 확인하세요 (예: 26.10.31)');
         await created('vendor_entries', `${description.value || (p ? '결제' : '입고')}`, api('POST', `/api/vendors/${v.id}/entries`, {
-          kind: p ? 'payment' : (b < 0 ? 'adjust' : 'purchase'), date: iso, description: description.value, amount: p || b,
+          kind: p ? 'payment' : (b < 0 ? 'adjust' : 'purchase'), date: iso, description: description.value, amount: p || b, qty: qty.value,
         }));
         lastDate = iso;
         refocus = true;
@@ -239,12 +241,13 @@ export function vendorsView() {
       }
     });
     const onKey = (e) => { if (e.key === 'Enter') { e.preventDefault(); send(); } };
-    for (const el of [date.input, description, billed, paid]) el.addEventListener('keydown', onKey);
+    for (const el of [date.input, description, qty, billed, paid]) el.addEventListener('keydown', onKey);
     for (const el of [billed, paid]) el.addEventListener('input', update);
 
     return [
       cell('날짜', date.node),
-      cell('내용', description),
+      cell('품목', description),
+      cell('수량', qty),
       cell('입고액', billed),
       h('div', { class: 'cell dim hide-sm' }, '반품은 위에서'),
       cell('결제액', paid),

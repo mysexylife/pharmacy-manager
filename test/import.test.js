@@ -221,3 +221,17 @@ test('제약회사 시트: 금액 없이 품목 이름만 있는 줄도 0원 줄
   assert.equal(db.prepare("SELECT COUNT(*) n FROM vendor_entries WHERE amount = 0").get().n, 1);
   assert.equal(db.prepare("SELECT SUM(CASE kind WHEN 'purchase' THEN amount ELSE -amount END) b FROM vendor_entries").get().b, 400);
 });
+
+test('제약회사 시트: 수량 열을 가져온다 (숫자, "5정" 같은 글자, 비어 있는 경우)', () => {
+  const head = [null, '연도', '입고일계산', '내용', '수량', '입고액', '결제액', '잔고'];
+  const buf = book([{ name: '고려', rows: [head,
+    [null, 2025, D('2025-03-05'), '약A', 12, 500, null, 500],
+    [null, 2025, D('2025-03-05'), '약B', '5정', null, null, 500],
+    [null, 2025, D('2025-03-06'), '결제', null, null, 100, 400],
+    [null, 2025, D('2025-03-07'), '약C', null, 50, null, 450]] }]);
+  const v = buildPlan([buf]).vendors[0];
+  assert.deepEqual(v.entries.map((e) => [e.description, e.qty ?? null]), [['약A', 12], ['약B', 5], ['결제', null], ['약C', null]]);
+  const db = openDb(':memory:');
+  commit(db, buildPlan([buf]));
+  assert.equal(db.prepare("SELECT qty FROM vendor_entries WHERE description = '약A'").get().qty, 12);
+});

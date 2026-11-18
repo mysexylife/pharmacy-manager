@@ -366,7 +366,7 @@ table.plain td { padding: 12px 8px; }
 .ledgercard.stack td:not([data-label])::before { content: none; }
 .ledgercard.stack td:empty { display: none; }
 .ledgercard.stack td[data-label="날짜"], .ledgercard.stack td[data-label="기준"] { flex: 0 0 auto; font-weight: 600; }
-.ledgercard.stack td[data-label="내용"], .ledgercard.stack td[data-label="환자명·품목"], .ledgercard.stack td[data-label="환자명"],
+.ledgercard.stack td[data-label="품목"], .ledgercard.stack td[data-label="내용"], .ledgercard.stack td[data-label="환자명·품목"], .ledgercard.stack td[data-label="환자명"],
 .ledgercard.stack td[data-label="외상 내용"], .ledgercard.stack td[data-label="제품명"] { flex: 1 1 40%; min-width: 0; }
 .ledgercard.stack td.num { flex: 1 1 22%; text-align: right; }
 .ledgercard.stack .emptyrow { display: none; }

@@ -22,6 +22,12 @@ const num = (v) => {
   const n = Number(v.replace(/[,\s원]/g, ''));
   return v.trim() !== '' && Number.isFinite(n) ? Math.round(n) : null;
 };
+// 수량: 숫자나 "5정"처럼 숫자로 시작하는 글자에서 정수를 뽑는다 (없으면 null)
+const qtyOf = (v) => {
+  if (typeof v === 'number') return Number.isFinite(v) && v > 0 && v < 1e7 ? Math.round(v) : null;
+  const m = /^\s*(\d+)/.exec(String(v ?? ''));
+  return m ? Number(m[1]) : null;
+};
 const isoOf = (v) => (typeof v === 'number' ? serialToIso(v) : null);
 
 // 머리글 행을 찾아 {열 이름: 열 번호}를 만든다 (열 위치는 시트마다 다르다).
@@ -117,7 +123,7 @@ function planVendorSheet(sheet) {
       warnings.push(`행 ${rowNo}: 날짜가 없어 앞 행의 날짜(${prev ?? '없음'})로 넣었습니다`);
     }
     if (date) prev = date;
-    raw.push({ rowNo, desc, inn, pay, bal, date });
+    raw.push({ rowNo, desc, inn, pay, bal, date, qty: qtyOf(cells.get(cols['수량'])) });
   }
   for (const r of fixYears(raw)) yearFixes.push(`행 ${r.rowNo}: ${r.from} → ${r.date}`);
   const firstDate = raw.map((r) => r.date).filter(Boolean).sort()[0] ?? todayKST();
@@ -150,21 +156,21 @@ function planVendorSheet(sheet) {
   for (const r of body) {
     if (r.inn == null && r.pay == null) {
       // 품목 이름만 있고 금액이 없는 줄은 금액 없이(0원으로) 그대로 둔다. 잔고에는 영향이 없다.
-      if (r.desc) entries.push({ date: r.date, kind: 'purchase', description: r.desc, amount: 0 });
+      if (r.desc) entries.push({ date: r.date, kind: 'purchase', description: r.desc, amount: 0, qty: r.qty });
       continue;
     }
     const isReturn = r.inn != null && (r.inn < 0 || (/반품/.test(r.desc) && r.inn > 0));
     if (isReturn) {
       const amount = Math.abs(r.inn);
-      returns.push({ date: r.date, item: r.desc.replace(/^반품\s*/, '').trim() || r.desc, amount });
+      returns.push({ date: r.date, item: r.desc.replace(/^반품\s*/, '').trim() || r.desc, amount, qty: r.qty });
       sum -= amount;
     } else if (r.inn) {
-      entries.push({ date: r.date, kind: 'purchase', description: r.desc || '입고', amount: r.inn });
+      entries.push({ date: r.date, kind: 'purchase', description: r.desc || '입고', amount: r.inn, qty: r.qty });
       sum += r.inn;
     }
     if (r.pay > 0 && (/반품/.test(r.desc) || (!r.inn && isReturnLike(r.desc)))) {
       // 결제란에 상품명(또는 "…반품")이 적힌 줄은 반품으로 본다
-      returns.push({ date: r.date, item: r.desc.replace(/반품/g, '').trim() || r.desc, amount: r.pay });
+      returns.push({ date: r.date, item: r.desc.replace(/반품/g, '').trim() || r.desc, amount: r.pay, qty: r.qty });
       sum -= r.pay;
     } else if (r.pay) {
       const label = /결[제재]/.test(r.desc) ? '결제' : r.desc || '결제';
@@ -359,16 +365,16 @@ export function commit(db, plan, { useComputed = [], reset = false } = {}) {
         continue;
       }
       vendorId ??= Number(db.prepare('INSERT INTO vendors (name, sort) VALUES (?, (SELECT COALESCE(MAX(sort), 0) + 1 FROM vendors))').run(v.name).lastInsertRowid);
-      const ins = db.prepare('INSERT INTO vendor_entries (vendor_id, date, kind, description, amount, return_id) VALUES (?, ?, ?, ?, ?, ?)');
-      if (v.opening) ins.run(vendorId, v.openingDate, 'adjust', '이월', v.opening, null);
-      for (const e of v.entries) ins.run(vendorId, e.date, e.kind, e.description, e.amount, null);
+      const ins = db.prepare('INSERT INTO vendor_entries (vendor_id, date, kind, description, amount, return_id, qty) VALUES (?, ?, ?, ?, ?, ?, ?)');
+      if (v.opening) ins.run(vendorId, v.openingDate, 'adjust', '이월', v.opening, null, null);
+      for (const e of v.entries) ins.run(vendorId, e.date, e.kind, e.description, e.amount, null, e.qty ?? null);
       for (const r of v.returns) {
         const rid = Number(db.prepare('INSERT INTO vendor_returns (vendor_id, date, item, amount, done, done_date) VALUES (?, ?, ?, ?, 1, ?)')
           .run(vendorId, r.date, r.item, r.amount, r.date).lastInsertRowid);
-        ins.run(vendorId, r.date, 'return', `반품 ${r.item}`, r.amount, rid);
+        ins.run(vendorId, r.date, 'return', `반품 ${r.item}`, r.amount, rid, r.qty ?? null);
       }
       if (v.excel != null && v.excel !== v.computed && !useComputed.includes(v.sheet)) {
-        ins.run(vendorId, v.lastDate, 'adjust', '조정(엑셀 잔고 기준)', v.excel - v.computed, null);
+        ins.run(vendorId, v.lastDate, 'adjust', '조정(엑셀 잔고 기준)', v.excel - v.computed, null, null);
       }
       result.vendors++;
       result.entries += v.entries.length + v.returns.length + 1;

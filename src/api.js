@@ -417,7 +417,7 @@ export function buildRoutes(db, ctx = {}) {
       handler: ({ params, query }) => {
         const v = vendor(params.id);
         const from = fromParam(query);
-        const rows = q(`SELECT id, date, kind, description, amount, return_id FROM vendor_entries
+        const rows = q(`SELECT id, date, kind, description, amount, qty, return_id FROM vendor_entries
           WHERE vendor_id = ? AND deleted_at IS NULL ORDER BY date, id`).all(v.id);
         const folded = foldLedger(rows, (r) => (r.kind === 'purchase' || r.kind === 'adjust' ? r.amount : -r.amount), from);
         const since = from ?? '0000-00-00';
@@ -444,8 +444,9 @@ export function buildRoutes(db, ctx = {}) {
           amount: money(body.amount, '금액', { signed: kind === 'adjust' }),
         };
         if (kind !== 'adjust' && row.amount === 0) throw new HttpError(400, '금액은 0보다 커야 합니다');
-        const r = q('INSERT INTO vendor_entries (vendor_id, date, kind, description, amount) VALUES (?, ?, ?, ?, ?)')
-          .run(v.id, row.date, kind, row.description, row.amount);
+        const qty = money(body.qty, '수량', { optional: true });
+        const r = q('INSERT INTO vendor_entries (vendor_id, date, kind, description, amount, qty) VALUES (?, ?, ?, ?, ?, ?)')
+          .run(v.id, row.date, kind, row.description, row.amount, qty);
         audit(db, 'entry.create', `${v.name} ${kind} ${row.date} ${row.amount}`);
         return { status: 201, body: { id: Number(r.lastInsertRowid) } };
       },
@@ -460,7 +461,8 @@ export function buildRoutes(db, ctx = {}) {
           description: body.description !== undefined ? str(body.description, '내용', { max: 200 }) : e.description,
           amount: body.amount !== undefined ? money(body.amount, '금액', { signed: e.kind === 'adjust' }) : e.amount,
         };
-        q('UPDATE vendor_entries SET date = ?, description = ?, amount = ? WHERE id = ?').run(next.date, next.description, next.amount, e.id);
+        const qty = body.qty !== undefined ? money(body.qty, '수량', { optional: true }) : e.qty;
+        q('UPDATE vendor_entries SET date = ?, description = ?, amount = ?, qty = ? WHERE id = ?').run(next.date, next.description, next.amount, qty, e.id);
         audit(db, 'entry.update', `${e.id} ${JSON.stringify(next)}`);
         return { body: { ok: true } };
       },
@@ -866,11 +868,11 @@ export function buildRoutes(db, ctx = {}) {
     {
       method: 'GET', path: '/api/export/vendors.csv', access: 'user',
       handler: () => {
-        const rows = q(`SELECT v.name, e.date, e.kind, e.description, e.amount FROM vendor_entries e
+        const rows = q(`SELECT v.name, e.date, e.kind, e.description, e.qty, e.amount FROM vendor_entries e
           JOIN vendors v ON v.id = e.vendor_id WHERE e.deleted_at IS NULL ORDER BY v.name, e.date, e.id`).all();
         const label = { purchase: '입고', payment: '결제', return: '반품', adjust: '조정' };
-        return csvResult(`제약회사장부-${todayKST()}.csv`, csv(['제약회사', '날짜', '구분', '내용', '금액'],
-          rows.map((r) => [r.name, formatDate(r.date), label[r.kind], r.description, r.amount])));
+        return csvResult(`제약회사장부-${todayKST()}.csv`, csv(['제약회사', '날짜', '구분', '품목', '수량', '금액'],
+          rows.map((r) => [r.name, formatDate(r.date), label[r.kind], r.description, r.qty, r.amount])));
       },
     },
     {

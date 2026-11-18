@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS vendor_entries (
   kind TEXT NOT NULL CHECK (kind IN ('purchase', 'payment', 'return', 'adjust')),
   description TEXT NOT NULL DEFAULT '',
   amount INTEGER NOT NULL,
+  qty INTEGER,
   return_id INTEGER,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   deleted_at TEXT
@@ -161,6 +162,8 @@ export function openDb(path) {
   // 예전에 만든 데이터베이스에는 없는 열을 채워 넣는다
   const vendorCols = db.prepare('PRAGMA table_info(vendors)').all().map((c) => c.name);
   if (!vendorCols.includes('rotation_months')) db.exec('ALTER TABLE vendors ADD COLUMN rotation_months INTEGER NOT NULL DEFAULT 6');
+  const entryCols = db.prepare('PRAGMA table_info(vendor_entries)').all().map((c) => c.name);
+  if (!entryCols.includes('qty')) db.exec('ALTER TABLE vendor_entries ADD COLUMN qty INTEGER');
   return db;
 }
 

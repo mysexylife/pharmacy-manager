@@ -249,6 +249,18 @@ test('장부를 모두 지우고 가져오기는 비밀번호와 확인 글자�
   assert.equal((await ok('GET', '/api/vendors')).length, before); // 아무것도 지워지지 않았다
 });
 
+test('제약회사 장부: 입고에 수량을 적고 고칠 수 있다', async () => {
+  const v = (await ok('POST', '/api/vendors', { name: '수량제약' }, 201)).id;
+  const e = (await ok('POST', `/api/vendors/${v}/entries`, { kind: 'purchase', date: '26.11.01', description: '약A', amount: 1000, qty: '12' }, 201)).id;
+  await ok('POST', `/api/vendors/${v}/entries`, { kind: 'payment', date: '26.11.02', description: '결제', amount: 500 }, 201);
+  let l = await ok('GET', `/api/vendors/${v}/ledger`);
+  assert.deepEqual(l.entries.map((x) => [x.description, x.qty]).sort(), [['결제', null], ['약A', 12]]);
+  await ok('PATCH', `/api/entries/${e}`, { qty: 20 });
+  l = await ok('GET', `/api/vendors/${v}/ledger`);
+  assert.equal(l.entries.find((x) => x.id === e).qty, 20);
+  assert.equal((await call('POST', `/api/vendors/${v}/entries`, { kind: 'purchase', date: '26.11.01', description: 'x', amount: 1, qty: 'abc' })).status, 400);
+});
+
 // ---------------------------------------------------------------- 병원 외상
 test('병원 단가표는 이름순(가나다)으로 나온다', async () => {
   for (const name of ['타이레놀', '가스활명수', '나오덤']) await ok('POST', '/api/hospital-products', { name, price: 1000 }, 201);
