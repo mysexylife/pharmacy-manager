@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS vendor_returns (
   vendor_id INTEGER NOT NULL REFERENCES vendors(id),
   date TEXT NOT NULL,
   item TEXT NOT NULL,
+  qty INTEGER,
   amount INTEGER NOT NULL DEFAULT 0,
   done INTEGER NOT NULL DEFAULT 0,
   done_date TEXT,
@@ -164,6 +165,8 @@ export function openDb(path) {
   if (!vendorCols.includes('rotation_months')) db.exec('ALTER TABLE vendors ADD COLUMN rotation_months INTEGER NOT NULL DEFAULT 6');
   const entryCols = db.prepare('PRAGMA table_info(vendor_entries)').all().map((c) => c.name);
   if (!entryCols.includes('qty')) db.exec('ALTER TABLE vendor_entries ADD COLUMN qty INTEGER');
+  const returnCols = db.prepare('PRAGMA table_info(vendor_returns)').all().map((c) => c.name);
+  if (!returnCols.includes('qty')) db.exec('ALTER TABLE vendor_returns ADD COLUMN qty INTEGER');
   return db;
 }
 

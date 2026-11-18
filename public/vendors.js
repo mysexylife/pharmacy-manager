@@ -127,7 +127,7 @@ export function vendorsView() {
       close();
       await refresh();
     }) }, h('div', { class: 'row' },
-      dateField('요청일'), field('품목명', 'item', { required: true, cls: 'wide' }),
+      dateField('요청일'), field('품목명', 'item', { required: true, cls: 'wide' }), moneyField('수량', 'qty', { value: '1', required: true }),
       moneyField('반품액(원)', 'amount', { placeholder: '모르면 비워 두기' }),
       h('button', { class: 'btn', type: 'submit' }, '추가'))));
     const addLoan = foldPair('차용', ({ close }) => h('form', { onsubmit: submit(err, async (fd, form) => {
@@ -150,7 +150,7 @@ export function vendorsView() {
     const returns = compactList(d.returns, (r) => r.done, (r) => h('li', { class: r.done ? 'done' : '' },
       h('label', { class: 'check' },
         h('input', { type: 'checkbox', checked: !!r.done, 'aria-label': `${r.item} 처리 완료`, onchange: act((e) => patched(`/api/returns/${r.id}`, { done: !e.target.checked }, { done: e.target.checked }, `반품 ${r.item} 처리 완료 표시`)) }),
-        h('span', { class: 'ptext' }, `${formatDate(r.date)} ${r.item}`, r.done && r.done_date ? h('small', {}, ` · 완료 ${formatDate(r.done_date)}`) : null)),
+        h('span', { class: 'ptext' }, `${formatDate(r.date)} ${r.item}`, r.qty ? h('small', {}, ` · ${r.qty}개`) : null, r.done && r.done_date ? h('small', {}, ` · 완료 ${formatDate(r.done_date)}`) : null)),
       r.done
         ? h('b', {}, won(r.amount))
         : h('input', { class: 'amt', type: 'text', inputmode: 'numeric', 'aria-label': `${r.item} 반품액`, value: r.amount || '', placeholder: '반품액',

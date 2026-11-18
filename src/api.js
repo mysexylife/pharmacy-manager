@@ -115,7 +115,7 @@ export function buildRoutes(db, ctx = {}) {
     const where = vendorId ? 'AND r.vendor_id = ?' : '';
     const args = vendorId ? [vendorId] : [];
     return {
-      returns: q(`SELECT r.id, r.vendor_id, v.name AS vendor, r.date, r.item, r.amount
+      returns: q(`SELECT r.id, r.vendor_id, v.name AS vendor, r.date, r.item, r.qty, r.amount
         FROM vendor_returns r JOIN vendors v ON v.id = r.vendor_id
         WHERE r.done = 0 AND r.deleted_at IS NULL ${where} ORDER BY r.date, r.id`).all(...args),
       loans: q(`SELECT r.id, r.vendor_id, v.name AS vendor, r.date, r.item, r.qty
@@ -421,7 +421,7 @@ export function buildRoutes(db, ctx = {}) {
           WHERE vendor_id = ? AND deleted_at IS NULL ORDER BY date, id`).all(v.id);
         const folded = foldLedger(rows, (r) => (r.kind === 'purchase' || r.kind === 'adjust' ? r.amount : -r.amount), from);
         const since = from ?? '0000-00-00';
-        const returns = q(`SELECT id, date, item, amount, done, done_date FROM vendor_returns
+        const returns = q(`SELECT id, date, item, qty, amount, done, done_date FROM vendor_returns
           WHERE vendor_id = ? AND deleted_at IS NULL AND (done = 0 OR COALESCE(done_date, date) >= ?)
           ORDER BY done, date DESC, id DESC`).all(v.id, since);
         const loans = q(`SELECT id, date, item, qty, returned, returned_date FROM vendor_loans
@@ -483,8 +483,10 @@ export function buildRoutes(db, ctx = {}) {
       method: 'POST', path: '/api/vendors/:id/returns', access: 'user',
       handler: ({ params, body }) => {
         const v = vendor(params.id);
-        const r = q('INSERT INTO vendor_returns (vendor_id, date, item, amount) VALUES (?, ?, ?, ?)').run(
-          v.id, date(body.date), str(body.item, '품목명', { required: true }), money(body.amount, '반품액', { blank: 0 }),
+        const qty = money(body.qty, '수량');
+        if (qty < 1) throw new HttpError(400, '수량은 1 이상이어야 합니다');
+        const r = q('INSERT INTO vendor_returns (vendor_id, date, item, qty, amount) VALUES (?, ?, ?, ?, ?)').run(
+          v.id, date(body.date), str(body.item, '품목명', { required: true }), qty, money(body.amount, '반품액', { blank: 0 }),
         );
         audit(db, 'return.create', `${v.name} ${body.item}`);
         return { status: 201, body: { id: Number(r.lastInsertRowid) } };
@@ -494,13 +496,14 @@ export function buildRoutes(db, ctx = {}) {
       method: 'PATCH', path: '/api/returns/:id', access: 'user',
       handler: ({ params, body }) => tx(db, () => {
         const r = must(q('SELECT * FROM vendor_returns WHERE id = ? AND deleted_at IS NULL').get(id(params.id)));
-        const editing = ['date', 'item', 'amount'].some((k) => body[k] !== undefined);
+        const editing = ['date', 'item', 'amount', 'qty'].some((k) => body[k] !== undefined);
         if (editing) {
           if (r.done) throw new HttpError(400, '처리 완료를 풀고 고쳐 주세요');
-          q('UPDATE vendor_returns SET date = ?, item = ?, amount = ? WHERE id = ?').run(
+          q('UPDATE vendor_returns SET date = ?, item = ?, amount = ?, qty = ? WHERE id = ?').run(
             body.date !== undefined ? date(body.date) : r.date,
             body.item !== undefined ? str(body.item, '품목명', { required: true }) : r.item,
-            body.amount !== undefined ? money(body.amount, '반품액') : r.amount, r.id,
+            body.amount !== undefined ? money(body.amount, '반품액') : r.amount,
+            body.qty !== undefined ? money(body.qty, '수량') : r.qty, r.id,
           );
         }
         if (body.done !== undefined) {
@@ -509,8 +512,8 @@ export function buildRoutes(db, ctx = {}) {
             if (!fresh.amount) throw new HttpError(400, '반품액을 먼저 입력하세요');
             const doneDate = body.done_date ? date(body.done_date, '처리 날짜') : todayKST();
             q('UPDATE vendor_returns SET done = 1, done_date = ? WHERE id = ?').run(doneDate, r.id);
-            q('INSERT INTO vendor_entries (vendor_id, date, kind, description, amount, return_id) VALUES (?, ?, ?, ?, ?, ?)')
-              .run(r.vendor_id, doneDate, 'return', fresh.item, fresh.amount, r.id);
+            q('INSERT INTO vendor_entries (vendor_id, date, kind, description, amount, return_id, qty) VALUES (?, ?, ?, ?, ?, ?, ?)')
+              .run(r.vendor_id, doneDate, 'return', fresh.item, fresh.amount, r.id, fresh.qty);
           } else if (!body.done && fresh.done) {
             q('UPDATE vendor_returns SET done = 0, done_date = NULL WHERE id = ?').run(r.id);
             q('DELETE FROM vendor_entries WHERE return_id = ?').run(r.id); // 체크를 풀면 장부에서 빠진다

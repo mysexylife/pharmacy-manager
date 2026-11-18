@@ -122,7 +122,7 @@ test('이번 달 결제 금액 = 6개월 전 월말 잔고 − 이후 결제액 
   assert.equal(find(due).balance, 6000000);   // 입고 1,300만 − 결제 700만
 
   // 반품: 처리 완료를 체크하기 전에는 계산에 들어가지 않는다
-  const ret = (await ok('POST', `/api/vendors/${v}/returns`, { date: '26.07.10', item: '콜로덤에스', amount: 500000 }, 201)).id;
+  const ret = (await ok('POST', `/api/vendors/${v}/returns`, { date: '26.07.10', item: '콜로덤에스', qty: 3, amount: 500000 }, 201)).id;
   due = await ok('GET', '/api/due?month=2026-10');
   assert.equal(find(due).due, 3000000);
   assert.equal(find(due).pendingReturns, 1);
@@ -157,9 +157,21 @@ test('이번 달 결제 금액 = 6개월 전 월말 잔고 − 이후 결제액 
   assert.equal(due.total >= 0, true);
 });
 
+test('반품: 품목명과 수량이 있어야 하고, 처리 완료하면 장부 반품 줄에 수량이 들어간다', async () => {
+  const v = (await ok('POST', '/api/vendors', { name: '수량반품제약' }, 201)).id;
+  assert.equal((await call('POST', `/api/vendors/${v}/returns`, { date: '26.10.01', item: '약' })).status, 400); // 수량 없음
+  assert.equal((await call('POST', `/api/vendors/${v}/returns`, { date: '26.10.01', item: '약', qty: 0 })).status, 400);
+  assert.equal((await call('POST', `/api/vendors/${v}/returns`, { date: '26.10.01', item: '', qty: 2 })).status, 400); // 품목명 없음
+  const ret = (await ok('POST', `/api/vendors/${v}/returns`, { date: '26.10.01', item: '약', qty: 4, amount: 8000 }, 201)).id;
+  await ok('PATCH', `/api/returns/${ret}`, { done: true, done_date: '26.10.05' });
+  const l = await ok('GET', `/api/vendors/${v}/ledger`);
+  assert.equal(l.returns.find((x) => x.id === ret).qty, 4);
+  assert.equal(l.entries.find((x) => x.kind === 'return').qty, 4);
+});
+
 test('반품: 금액이 없으면 처리 완료를 체크할 수 없고, 완료된 반품은 고칠 수 없다', async () => {
   const v = (await ok('POST', '/api/vendors', { name: '반품규칙제약' }, 201)).id;
-  const ret = (await ok('POST', `/api/vendors/${v}/returns`, { date: '26.10.01', item: '약' }, 201)).id;
+  const ret = (await ok('POST', `/api/vendors/${v}/returns`, { date: '26.10.01', item: '약', qty: 1 }, 201)).id;
   assert.equal((await call('PATCH', `/api/returns/${ret}`, { done: true })).status, 400);
   await ok('PATCH', `/api/returns/${ret}`, { amount: 12000 });
   await ok('PATCH', `/api/returns/${ret}`, { done: true });
@@ -394,7 +406,7 @@ test('삭제하면 휴지통으로 가고 되살릴 수 있다. 완료된 반품
   await ok('POST', '/api/trash/restore', { table: 'vendor_entries', id: e });
   assert.equal((await ok('GET', `/api/vendors/${v}/ledger`)).balance, 1000);
 
-  const ret = (await ok('POST', `/api/vendors/${v}/returns`, { date: '26.10.02', item: '반품약', amount: 400 }, 201)).id;
+  const ret = (await ok('POST', `/api/vendors/${v}/returns`, { date: '26.10.02', item: '반품약', qty: 2, amount: 400 }, 201)).id;
   await ok('PATCH', `/api/returns/${ret}`, { done: true });
   assert.equal((await ok('GET', `/api/vendors/${v}/ledger`)).balance, 600);
   await ok('DELETE', `/api/returns/${ret}`);

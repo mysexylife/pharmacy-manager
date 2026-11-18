@@ -52,7 +52,7 @@ export function dueView() {
       return null; // 처리 중인 것이 없으면 아무것도 보여 주지 않는다
     }
     const rows = [
-      ...returns.map((r) => ({ ...r, kind: '반품', detail: r.amount ? `${won(r.amount)}원` : '금액 미입력', check: '처리 완료', path: `/api/returns/${r.id}`, data: { done: true } })),
+      ...returns.map((r) => ({ ...r, item: r.qty ? `${r.item} · ${r.qty}개` : r.item, kind: '반품', detail: r.amount ? `${won(r.amount)}원` : '금액 미입력', check: '처리 완료', path: `/api/returns/${r.id}`, data: { done: true } })),
       ...loans.map((l) => ({ ...l, kind: '차용', detail: `${l.qty}개`, check: '반환 완료', path: `/api/loans/${l.id}`, data: { returned: true } })),
       ...memos.map((n) => ({ ...n, kind: '메모', item: n.body, detail: '', check: '확인 완료', path: `/api/notes/${n.id}`, data: { done: true } })),
     ];
