@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS vendor_returns (
   item TEXT NOT NULL,
   qty INTEGER,
   amount INTEGER NOT NULL DEFAULT 0,
+  requested INTEGER NOT NULL DEFAULT 0,
+  requested_date TEXT,
   done INTEGER NOT NULL DEFAULT 0,
   done_date TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -167,6 +169,11 @@ export function openDb(path) {
   if (!entryCols.includes('qty')) db.exec('ALTER TABLE vendor_entries ADD COLUMN qty INTEGER');
   const returnCols = db.prepare('PRAGMA table_info(vendor_returns)').all().map((c) => c.name);
   if (!returnCols.includes('qty')) db.exec('ALTER TABLE vendor_returns ADD COLUMN qty INTEGER');
+  if (!returnCols.includes('requested')) {
+    db.exec('ALTER TABLE vendor_returns ADD COLUMN requested INTEGER NOT NULL DEFAULT 0');
+    db.exec('ALTER TABLE vendor_returns ADD COLUMN requested_date TEXT');
+    db.exec('UPDATE vendor_returns SET requested = 1, requested_date = date WHERE done = 1'); // 이미 처리 완료된 반품은 요청도 확인된 것으로 본다
+  }
   return db;
 }
 

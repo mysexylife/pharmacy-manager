@@ -582,3 +582,14 @@ tr[hidden] { display: none !important; }
   .split > .listbox { top: 49px; }
   .split .stickybar { top: 111px; }
 }
+
+/* 반품 2단계: 요청 확인 → 금액·처리 완료 */
+.items li.retitem { display: block; }
+.retmain { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; }
+.retmain .check { flex: 1 1 auto; min-width: 0; }
+.retstep { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px 0 2px 30px; font-size: 13px; }
+.retstep .amt { width: 96px; }
+.retstep .donedate { width: 150px; min-height: 30px; padding: 2px 8px; font-size: 13px; }
+.todo { color: var(--danger); }
+.retdone { white-space: nowrap; font-size: 14px; }
+.retdone strong { color: var(--ink); }

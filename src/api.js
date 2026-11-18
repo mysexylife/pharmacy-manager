@@ -115,7 +115,7 @@ export function buildRoutes(db, ctx = {}) {
     const where = vendorId ? 'AND r.vendor_id = ?' : '';
     const args = vendorId ? [vendorId] : [];
     return {
-      returns: q(`SELECT r.id, r.vendor_id, v.name AS vendor, r.date, r.item, r.qty, r.amount
+      returns: q(`SELECT r.id, r.vendor_id, v.name AS vendor, r.date, r.item, r.qty, r.amount, r.requested, r.requested_date
         FROM vendor_returns r JOIN vendors v ON v.id = r.vendor_id
         WHERE r.done = 0 AND r.deleted_at IS NULL ${where} ORDER BY r.date, r.id`).all(...args),
       loans: q(`SELECT r.id, r.vendor_id, v.name AS vendor, r.date, r.item, r.qty
@@ -421,7 +421,7 @@ export function buildRoutes(db, ctx = {}) {
           WHERE vendor_id = ? AND deleted_at IS NULL ORDER BY date, id`).all(v.id);
         const folded = foldLedger(rows, (r) => (r.kind === 'purchase' || r.kind === 'adjust' ? r.amount : -r.amount), from);
         const since = from ?? '0000-00-00';
-        const returns = q(`SELECT id, date, item, qty, amount, done, done_date FROM vendor_returns
+        const returns = q(`SELECT id, date, item, qty, amount, requested, requested_date, done, done_date FROM vendor_returns
           WHERE vendor_id = ? AND deleted_at IS NULL AND (done = 0 OR COALESCE(done_date, date) >= ?)
           ORDER BY done, date DESC, id DESC`).all(v.id, since);
         const loans = q(`SELECT id, date, item, qty, returned, returned_date FROM vendor_loans
@@ -506,11 +506,18 @@ export function buildRoutes(db, ctx = {}) {
             body.qty !== undefined ? money(body.qty, '수량') : r.qty, r.id,
           );
         }
+        // 1단계: 반품 요청 확인 (제약회사에 반품을 요청했고 확인받았을 때)
+        if (body.requested !== undefined && !r.done) {
+          const when = body.requested ? (body.requested_date ? date(body.requested_date, '요청 확인 날짜') : todayKST()) : null;
+          q('UPDATE vendor_returns SET requested = ?, requested_date = ? WHERE id = ?').run(flag(body.requested), when, r.id);
+        }
+        // 2단계: 반품 처리된 명세서를 받으면 금액을 적고 처리 완료. 장부에는 처리 완료 날짜로 들어간다.
         if (body.done !== undefined) {
           const fresh = q('SELECT * FROM vendor_returns WHERE id = ?').get(r.id);
           if (body.done && !fresh.done) {
             if (!fresh.amount) throw new HttpError(400, '반품액을 먼저 입력하세요');
             const doneDate = body.done_date ? date(body.done_date, '처리 날짜') : todayKST();
+            if (!fresh.requested) q('UPDATE vendor_returns SET requested = 1, requested_date = ? WHERE id = ?').run(doneDate, r.id);
             q('UPDATE vendor_returns SET done = 1, done_date = ? WHERE id = ?').run(doneDate, r.id);
             q('INSERT INTO vendor_entries (vendor_id, date, kind, description, amount, return_id, qty) VALUES (?, ?, ?, ?, ?, ?, ?)')
               .run(r.vendor_id, doneDate, 'return', fresh.item, fresh.amount, r.id, fresh.qty);

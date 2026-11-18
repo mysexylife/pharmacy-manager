@@ -169,6 +169,25 @@ test('반품: 품목명과 수량이 있어야 하고, 처리 완료하면 장�
   assert.equal(l.entries.find((x) => x.kind === 'return').qty, 4);
 });
 
+test('반품 2단계: 요청 확인 → 금액을 적고 처리 완료(날짜가 장부 날짜)', async () => {
+  const v = (await ok('POST', '/api/vendors', { name: '2단계반품제약' }, 201)).id;
+  const ret = (await ok('POST', `/api/vendors/${v}/returns`, { date: '26.11.01', item: '약A', qty: 3 }, 201)).id;
+  let l = await ok('GET', `/api/vendors/${v}/ledger`);
+  assert.deepEqual([l.returns[0].requested, l.returns[0].done], [0, 0]);
+  await ok('PATCH', `/api/returns/${ret}`, { requested: true, requested_date: '26.11.03' });
+  l = await ok('GET', `/api/vendors/${v}/ledger`);
+  assert.deepEqual([l.returns[0].requested, l.returns[0].requested_date, l.returns[0].done], [1, '2026-11-03', 0]);
+  assert.equal(l.entries.some((e) => e.kind === 'return'), false); // 요청만으로는 장부에 들어가지 않는다
+  assert.equal((await call('PATCH', `/api/returns/${ret}`, { done: true })).status, 400); // 금액 없이 처리 완료 불가
+  await ok('PATCH', `/api/returns/${ret}`, { amount: 30000 });
+  await ok('PATCH', `/api/returns/${ret}`, { done: true, done_date: '26.11.15' });
+  l = await ok('GET', `/api/vendors/${v}/ledger`);
+  const entry = l.entries.find((e) => e.kind === 'return');
+  assert.deepEqual([entry.date, entry.amount, entry.qty], ['2026-11-15', 30000, 3]); // 처리 완료 날짜로 장부에
+  await ok('PATCH', `/api/returns/${ret}`, { done: false });
+  assert.equal((await ok('GET', `/api/vendors/${v}/ledger`)).entries.some((e) => e.kind === 'return'), false);
+});
+
 test('반품: 금액이 없으면 처리 완료를 체크할 수 없고, 완료된 반품은 고칠 수 없다', async () => {
   const v = (await ok('POST', '/api/vendors', { name: '반품규칙제약' }, 201)).id;
   const ret = (await ok('POST', `/api/vendors/${v}/returns`, { date: '26.10.01', item: '약', qty: 1 }, 201)).id;

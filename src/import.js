@@ -369,8 +369,8 @@ export function commit(db, plan, { useComputed = [], reset = false } = {}) {
       if (v.opening) ins.run(vendorId, v.openingDate, 'adjust', '이월', v.opening, null, null);
       for (const e of v.entries) ins.run(vendorId, e.date, e.kind, e.description, e.amount, null, e.qty ?? null);
       for (const r of v.returns) {
-        const rid = Number(db.prepare('INSERT INTO vendor_returns (vendor_id, date, item, qty, amount, done, done_date) VALUES (?, ?, ?, ?, ?, 1, ?)')
-          .run(vendorId, r.date, r.item, r.qty ?? null, r.amount, r.date).lastInsertRowid);
+        const rid = Number(db.prepare('INSERT INTO vendor_returns (vendor_id, date, item, qty, amount, requested, requested_date, done, done_date) VALUES (?, ?, ?, ?, ?, 1, ?, 1, ?)')
+          .run(vendorId, r.date, r.item, r.qty ?? null, r.amount, r.date, r.date).lastInsertRowid);
         ins.run(vendorId, r.date, 'return', `반품 ${r.item}`, r.amount, rid, r.qty ?? null);
       }
       if (v.excel != null && v.excel !== v.computed && !useComputed.includes(v.sheet)) {

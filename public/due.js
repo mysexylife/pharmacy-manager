@@ -52,7 +52,9 @@ export function dueView() {
       return null; // 처리 중인 것이 없으면 아무것도 보여 주지 않는다
     }
     const rows = [
-      ...returns.map((r) => ({ ...r, item: r.qty ? `${r.item} · ${r.qty}개` : r.item, kind: '반품', detail: r.amount ? `${won(r.amount)}원` : '금액 미입력', check: '처리 완료', path: `/api/returns/${r.id}`, data: { done: true } })),
+      ...returns.map((r) => (r.requested
+        ? { ...r, item: r.qty ? `${r.item} · ${r.qty}개` : r.item, kind: '반품', detail: '명세서 대기', check: null, hint: '금액·처리 완료는 제약회사 장부에서' }
+        : { ...r, item: r.qty ? `${r.item} · ${r.qty}개` : r.item, kind: '반품', detail: '요청 확인 전', check: '요청 확인', path: `/api/returns/${r.id}`, data: { requested: true } })),
       ...loans.map((l) => ({ ...l, kind: '차용', detail: `${l.qty}개`, check: '반환 완료', path: `/api/loans/${l.id}`, data: { returned: true } })),
       ...memos.map((n) => ({ ...n, kind: '메모', item: n.body, detail: '', check: '확인 완료', path: `/api/notes/${n.id}`, data: { done: true } })),
     ];
@@ -66,8 +68,8 @@ export function dueView() {
           h('td', { 'data-label': '날짜' }, formatDate(r.date)),
           h('td', { 'data-label': '품목·내용' }, r.item),
           h('td', { class: 'num', 'data-label': '금액·개수' }, r.detail),
-          h('td', {}, h('label', { class: 'check' },
-            h('input', { type: 'checkbox', onchange: patch(r.path, r.data, `${r.check}로 기록했어요`) }), r.check)))))));
+          h('td', {}, r.check ? h('label', { class: 'check' },
+            h('input', { type: 'checkbox', onchange: patch(r.path, r.data, `${r.check}로 기록했어요`) }), r.check) : h('small', { class: 'muted' }, r.hint ?? '')))))));
   }
 
   function dueRow(r, d) {
