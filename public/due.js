@@ -32,13 +32,13 @@ export function dueView() {
     return [
       pageHead('결제 대상', monthNav),
       h('div', { class: 'stats' },
-        h('div', { class: 'stat' }, h('span', {}, '결제할 금액 합계'), h('b', {}, `${won(d.total)}원`)),
+        h('div', { class: 'stat' }, h('span', {}, '예상 결제금액 합계'), h('b', {}, `${won(d.total)}원`)),
         h('div', { class: 'stat' }, h('span', {}, '처리 중인 반품·차용·메모'), h('b', {}, `${pending}건`)),
-        h('div', { class: 'stat' }, h('span', {}, '결제 금액 계산'), h('b', {}, d.roundUnit > 1 ? `${won(d.roundUnit)}원 단위 내림` : '내림 없음'),
+        h('div', { class: 'stat' }, h('span', {}, '예상 결제금액 계산'), h('b', {}, d.roundUnit > 1 ? `${won(d.roundUnit)}원 단위 내림` : '내림 없음'),
           h('small', { class: 'hint' }, '회전 개월 수는 제약회사마다 다르게 설정'))),
       pendingCard(d),
-      h('div', { class: 'card' }, h('h2', {}, '제약회사별 결제 금액'),
-        h('div', { class: 'duecols', 'aria-hidden': 'true' }, h('span', {}, '제약회사'), h('span', {}, '결제 금액'), h('span', {}, '현재 잔고')),
+      h('div', { class: 'card' }, h('h2', {}, '제약회사별 예상 결제금액'),
+        h('div', { class: 'duecols', 'aria-hidden': 'true' }, h('span', {}, '제약회사'), h('span', {}, '예상 결제금액'), h('span', {}, '현재 잔고')),
         ...d.rows.map((r) => dueRow(r, d)),
         h('div', { class: 'duetotal' }, h('span', {}, '합계'), h('b', {}, `${won(d.total)}원`), h('b', { class: 'balcol' }, `${won(d.rows.reduce((s, r) => s + r.balance, 0))}원`))),
     ];
