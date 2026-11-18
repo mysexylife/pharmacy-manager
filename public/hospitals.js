@@ -3,8 +3,11 @@ import {
   foldPair, dateField, field, moneyField, badge,
 } from './lib.js';
 import { addMonths } from './dates.js';
-import { sheet, cell } from './sheet.js';
+import { sheet, cell, idealWidth } from './sheet.js';
 import { created, deleted, patched } from './undo.js';
+
+// 병원 장부: 이름은 한글 7자, 판매·외상·할인액은 10만원 단위, 잔고는 백만원 단위까지만 나오므로 열을 좁게(넘치면 잘림)
+const LEDGER_COLS = ['120px', 'minmax(84px, 104px)', '44px', 'minmax(64px, 76px)', 'minmax(56px, 68px)', 'minmax(64px, 76px)', 'minmax(72px, 92px)', 'minmax(84px, 104px)', '40px'];
 
 const HOSPITAL_NAME = '한사랑의원'; // 병원은 한 곳뿐이라 목록 없이 바로 보여 준다
 
@@ -51,6 +54,7 @@ export function hospitalsView() {
       advancePanel(d),
       ledgerCard(d, products),
       pricePanel(products));
+    detail.style.setProperty('--ledger-w', `${idealWidth(LEDGER_COLS) + 2}px`); // 단가표가 장부 바로 옆에 붙도록
     if (refocus) { refs.item?.focus(); refocus = false; }
   }
 
@@ -108,9 +112,9 @@ export function hospitalsView() {
     }
     const cells = buildAddRow(d, products);
     const card = sheet({
-      cols: ['120px', 'minmax(120px, 1.8fr)', '52px', 'minmax(80px, 1fr)', 'minmax(70px, 0.9fr)', 'minmax(80px, 1fr)', 'minmax(80px, 1fr)', 'minmax(90px, 1.1fr)', '44px'],
+      cols: LEDGER_COLS,
       heads: [['날짜'], ['환자명·품목', false, true], ['수량', true], ['판매금액', true], ['할인액', true], ['외상액', true], ['결제액', true], ['잔고', true], ['']], filterKey: 'hospital',
-      rows, addCells: cells, focusEl: refs.item,
+      rows, addCells: cells, focusEl: refs.item, className: 'hospsheet',
     });
     // 이전 내역은 위쪽에서 한 달씩 더 불러온다
     if (d.hasEarlier || back > 1) {

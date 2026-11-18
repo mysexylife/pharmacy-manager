@@ -277,7 +277,7 @@ a.tel { white-space: nowrap; }
   .shell.mini .sidehead .brand { padding: 4px 0 0; }
 }
 /* ---- 병원 외상: 왼쪽 내역표 + 오른쪽 품목 단가표, 환자 외상: 이름 누르면 전체 목록 ---- */
-.hospgrid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; align-items: start; }
+.hospgrid { display: grid; grid-template-columns: minmax(0, var(--ledger-w, 1fr)) 280px; justify-content: start; gap: 16px; align-items: start; }
 .hospgrid > * { min-width: 0; }
 .hospbar { grid-column: 1 / -1; margin-bottom: 0; }
 .earlier { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 8px 2px; }
@@ -550,3 +550,12 @@ tr[hidden] { display: none !important; }
 .hospbar .badge { margin-right: 14px; }
 /* 자동으로 채워진 외상액 칸 */
 .addbar input.auto { background: var(--brand-soft); color: var(--brand); font-weight: 600; cursor: default; }
+
+/* 병원 장부: 칸 안쪽 여백을 줄여 한 줄로 촘촘하게 */
+.hospsheet .ledger { font-size: 14px; }
+.hospsheet .ledger th { padding: 8px 3px; }
+.hospsheet .ledger tbody td { padding: 5px 3px; }
+.hospsheet .addbar .cell { padding: 0 2px; }
+.hospsheet .addbar input[type=text] { padding: 2px 4px; font-size: 13.5px; }
+.hospsheet .ledger tbody td[data-label="잔고"] { font-size: 15px; }
+.hospsheet .datewrap input[type=text] { min-width: 0; }

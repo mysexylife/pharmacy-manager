@@ -61,6 +61,13 @@ function widthsFor(specs, total) {
   return widths;
 }
 
+// 모든 열이 고정 또는 최대 폭이 있으면, 표가 가질 수 있는 가장 넓은 폭(카드 여백 포함). 남는 열이 있으면 null.
+export function idealWidth(cols) {
+  const specs = parseCols(cols);
+  if (specs.some((c) => c.fixed == null && c.max == null)) return null;
+  return specs.reduce((n, c) => n + (c.fixed ?? c.max), 0) + 18;
+}
+
 export function sheet({ cols, heads, rows, addCells, focusEl, className = '', filterKey = null }) {
   const specs = parseCols(cols);
   const colEls = cols.map(() => h('col'));
@@ -69,6 +76,8 @@ export function sheet({ cols, heads, rows, addCells, focusEl, className = '', fi
     h('thead', {}, h('tr', {}, heads.map(([text, num, left]) => h('th', { class: `${num ? 'num' : ''} ${left ? 'ltext' : ''} ${text === '잔고' ? 'balhead' : ''}` }, text)))),
     h('tbody', {}, rows));
   const card = h('div', { class: `card ledgercard ${className}` }, table);
+  const ideal = idealWidth(cols);
+  if (ideal) card.style.maxWidth = `${ideal}px`; // 모든 열에 최대 폭이 있으면 표를 그 폭에서 멈추고 더 넓히지 않는다
   // 글자 열(내용·품목 등)은 왼쪽, 나머지는 가운데 정렬. 길어서 잘린 글자는 마우스를 올리면 전체가 보인다.
   const leftCols = new Set(heads.map((hd, i) => (hd[2] ? i : -1)).filter((i) => i >= 0));
   for (const tr of table.tBodies[0].rows) {
