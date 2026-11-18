@@ -193,7 +193,8 @@ test('병원 외상: 같은 줄의 5,000원 결제는 할인액으로, 금액 �
   const h = buildPlan([buf]).hospital;
   const rx = h.entries.find((e) => e.item === '한상근 조제');
   assert.deepEqual([rx.kind, rx.original, rx.discount, rx.billed, rx.paid], ['rx', 61600, 5000, 56600, 0]);
-  assert.ok(h.entries.some((e) => e.item === '타이레놀 5정' && e.qty === 5 && e.billed === 0 && e.paid === 0));
+  assert.ok(h.advances.some((e) => e.item === '타이레놀 5정' && e.qty === 5)); // 금액 없는 줄은 "미리 가져간 조제약"으로
+  assert.equal(h.entries.some((e) => e.item.startsWith('타이레놀')), false);
   assert.equal(h.entries.filter((e) => e.kind === 'payment').map((e) => e.paid).join(), '10000,20000');
   assert.equal(h.computed, 170600);
   assert.equal(h.excel, 170600); // 잔고는 엑셀과 그대로 일치
@@ -203,4 +204,6 @@ test('병원 외상: 같은 줄의 5,000원 결제는 할인액으로, 금액 �
   const row = db.prepare("SELECT kind, original, discount, billed FROM hospital_entries WHERE item = '한상근 조제'").get();
   assert.deepEqual([row.kind, row.original, row.discount, row.billed], ['rx', 61600, 5000, 56600]);
   assert.equal(db.prepare('SELECT SUM(billed - paid) b FROM hospital_entries').get().b, 170600);
+  const adv = db.prepare('SELECT item, qty, done FROM hospital_advances').all();
+  assert.deepEqual(adv.map((a) => [a.item, a.qty, a.done]), [['타이레놀 5정', 5, 1]]);
 });

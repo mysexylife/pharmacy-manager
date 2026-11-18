@@ -545,3 +545,6 @@ tr[hidden] { display: none !important; }
   .duehead .balcol, .duehead b { font-size: 14px; }
   .duetotal b { font-size: 15px; }
 }
+
+.hospgrid > .hospadv { grid-column: 1 / -1; }
+.hospbar .badge { margin-right: 14px; }

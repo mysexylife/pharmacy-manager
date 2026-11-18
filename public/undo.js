@@ -14,6 +14,7 @@ const DEL = {
   vendor_returns: (id) => `/api/returns/${id}`,
   vendor_loans: (id) => `/api/loans/${id}`,
   vendor_notes: (id) => `/api/notes/${id}`,
+  hospital_advances: (id) => `/api/advances/${id}`,
 };
 const restore = (table, id) => api('POST', '/api/trash/restore', { table, id });
 

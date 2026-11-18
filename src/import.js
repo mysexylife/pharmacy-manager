@@ -229,15 +229,16 @@ export function planHospital(sheets) {
   opening ??= 0;
   let merged = 0;
   let zero = 0;
+  const advances = []; // 금액 없이 품목만 적힌 줄 = 처방전보다 먼저 가져간 조제약
   const entries = [];
   let sum = opening;
   for (const r of raw) {
     if (r.bill == null && r.paid == null) {
-      // 금액이 없는 품목 줄(예: "타이레놀 5정")도 기록으로 남긴다. 잔고에는 영향이 없다.
+      // 금액이 없는 품목 줄(예: "타이레놀 5정")은 "미리 가져간 조제약" 기록으로 가져온다 (잔고에는 영향 없음).
       if (r.item && !/^이월/.test(r.item)) {
         const unit = r.qtyText && !/^\d+$/.test(r.qtyText) ? ` ${r.qtyText}` : '';
         const lead = /^(\d+)/.exec(r.qtyText);
-        entries.push({ date: r.date, kind: 'otc', item: `${r.item}${unit}`, qty: r.qty ?? (lead ? Number(lead[1]) : null), billed: 0, paid: 0 });
+        advances.push({ date: r.date, item: `${r.item}${unit}`, qty: r.qty ?? (lead ? Number(lead[1]) : null) });
         zero += 1;
       }
       continue;
@@ -274,7 +275,7 @@ export function planHospital(sheets) {
     }
   }
   return { name: HOSPITAL, opening, openingDate: firstDate, entries, products, computed: sum, excel: last?.bal ?? null, lastDate: last?.date ?? firstDate, warnings,
-    sourceRows: raw.filter((r) => !/^이월/.test(r.item)).length, merged, zero };
+    advances, sourceRows: raw.filter((r) => !/^이월/.test(r.item)).length, merged, zero };
 }
 
 // ---- 환자 외상 -----------------------------------------------------------
@@ -348,7 +349,7 @@ export function commit(db, plan, { useComputed = [], reset = false } = {}) {
   const result = { vendors: 0, entries: 0, skippedExisting: [], hospital: false, credits: 0, reset: false };
   tx(db, () => {
     if (reset) {
-      for (const t of ['vendor_entries', 'vendor_returns', 'vendor_loans', 'vendor_notes', 'hospital_entries', 'credits']) db.exec(`DELETE FROM ${t}`);
+      for (const t of ['vendor_entries', 'vendor_returns', 'vendor_loans', 'vendor_notes', 'hospital_entries', 'hospital_advances', 'credits']) db.exec(`DELETE FROM ${t}`);
       result.reset = true;
     }
     for (const v of plan.vendors) {
@@ -384,6 +385,9 @@ export function commit(db, plan, { useComputed = [], reset = false } = {}) {
         if (h.opening) ins.run(hid, h.openingDate, 'adjust', '이월', null, null, null, h.opening, 0);
         for (const e of h.entries) ins.run(hid, e.date, e.kind, e.item, e.qty ?? null, e.original ?? null, e.discount ?? null, e.billed, e.paid);
         if (h.excel != null && h.excel !== h.computed) ins.run(hid, h.lastDate, 'adjust', '조정(엑셀 잔고 기준)', null, null, null, h.excel - h.computed, 0);
+        // 미리 가져간 조제약: 이미 조제약 외상에 들어간 것으로 보고 확인 완료로 가져온다
+        const adv = db.prepare('INSERT INTO hospital_advances (hospital_id, date, item, qty, done, done_date) VALUES (?, ?, ?, ?, 1, ?)');
+        for (const a of h.advances) adv.run(hid, a.date, a.item, a.qty ?? null, a.date);
         const prod = db.prepare('INSERT OR IGNORE INTO hospital_products (name, price) VALUES (?, ?)');
         for (const p of h.products) prod.run(p.name, p.price);
         result.hospital = true;

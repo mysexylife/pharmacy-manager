@@ -187,6 +187,10 @@ export function buildRoutes(db, ctx = {}) {
       sql: `SELECT t.id, t.deleted_at, t.created_at AS date, v.name || ' · 메모 ' || t.body AS label
             FROM vendor_notes t JOIN vendors v ON v.id = t.vendor_id WHERE t.deleted_at IS NOT NULL`,
     },
+    hospital_advances: {
+      sql: `SELECT t.id, t.deleted_at, t.date, h.name || ' · 미리 가져간 조제약 ' || t.item AS label
+            FROM hospital_advances t JOIN hospitals h ON h.id = t.hospital_id WHERE t.deleted_at IS NOT NULL`,
+    },
     hospital_entries: {
       sql: `SELECT t.id, t.deleted_at, t.date, h.name || ' · ' || t.item || ' ' || (t.billed + t.paid) AS label
             FROM hospital_entries t JOIN hospitals h ON h.id = t.hospital_id WHERE t.deleted_at IS NOT NULL`,
@@ -211,7 +215,7 @@ export function buildRoutes(db, ctx = {}) {
     const limit = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
     tx(db, () => {
       q('DELETE FROM vendor_entries WHERE deleted_at < ?').run(limit);
-      for (const t of ['vendor_returns', 'vendor_loans', 'vendor_notes', 'hospital_entries', 'credits']) {
+      for (const t of ['vendor_returns', 'vendor_loans', 'vendor_notes', 'hospital_entries', 'hospital_advances', 'credits']) {
         q(`DELETE FROM ${t} WHERE deleted_at < ?`).run(limit);
       }
     });
@@ -625,7 +629,47 @@ export function buildRoutes(db, ctx = {}) {
         const h = hospital(params.id);
         const rows = q(`SELECT id, date, kind, item, qty, original, discount, billed, paid FROM hospital_entries
           WHERE hospital_id = ? AND deleted_at IS NULL ORDER BY date, id`).all(h.id);
-        return { body: { hospital: h, ...foldLedger(rows, (r) => r.billed - r.paid, fromParam(query)) } };
+        const advances = q(`SELECT id, date, item, qty, done, done_date FROM hospital_advances
+          WHERE hospital_id = ? AND deleted_at IS NULL ORDER BY done, date DESC, id DESC LIMIT 300`).all(h.id);
+        return { body: { hospital: h, ...foldLedger(rows, (r) => r.billed - r.paid, fromParam(query)), advances } };
+      },
+    },
+    // 처방전보다 먼저 가져간 조제약 기록 (처방전이 들어오면 확인 체크)
+    {
+      method: 'POST', path: '/api/hospitals/:id/advances', access: 'user',
+      handler: ({ params, body }) => {
+        const h = hospital(params.id);
+        const qty = money(body.qty, '수량', { blank: 1 });
+        const r = q('INSERT INTO hospital_advances (hospital_id, date, item, qty) VALUES (?, ?, ?, ?)')
+          .run(h.id, date(body.date), str(body.item, '품목', { required: true }), qty);
+        audit(db, 'advance.create', `${h.name} ${body.item} ${qty}`);
+        return { status: 201, body: { id: Number(r.lastInsertRowid) } };
+      },
+    },
+    {
+      method: 'PATCH', path: '/api/advances/:id', access: 'user',
+      handler: ({ params, body }) => {
+        const a = must(q('SELECT * FROM hospital_advances WHERE id = ? AND deleted_at IS NULL').get(id(params.id)));
+        if (body.done !== undefined) {
+          const when = body.done ? (body.done_date ? date(body.done_date, '확인 날짜') : todayKST()) : null;
+          q('UPDATE hospital_advances SET done = ?, done_date = ? WHERE id = ?').run(flag(body.done), when, a.id);
+        }
+        if (body.item !== undefined || body.qty !== undefined || body.date !== undefined) {
+          q('UPDATE hospital_advances SET date = ?, item = ?, qty = ? WHERE id = ?').run(
+            body.date !== undefined ? date(body.date) : a.date,
+            body.item !== undefined ? str(body.item, '품목', { required: true }) : a.item,
+            body.qty !== undefined ? money(body.qty, '수량') : a.qty, a.id,
+          );
+        }
+        audit(db, 'advance.update', `${a.id} ${JSON.stringify(body)}`);
+        return { body: { ok: true } };
+      },
+    },
+    {
+      method: 'DELETE', path: '/api/advances/:id', access: 'user',
+      handler: ({ params }) => {
+        softDelete('hospital_advances', id(params.id));
+        return { body: { ok: true } };
       },
     },
     {

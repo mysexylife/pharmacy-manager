@@ -112,6 +112,19 @@ CREATE TABLE IF NOT EXISTS hospital_entries (
 );
 CREATE INDEX IF NOT EXISTS idx_hentries ON hospital_entries (hospital_id, date, id);
 
+-- 병원이 처방전보다 먼저 가져간 조제약. 처방전이 들어와 조제약 외상에 반영되면 확인 체크한다.
+CREATE TABLE IF NOT EXISTS hospital_advances (
+  id INTEGER PRIMARY KEY,
+  hospital_id INTEGER NOT NULL REFERENCES hospitals(id),
+  date TEXT NOT NULL,
+  item TEXT NOT NULL,
+  qty INTEGER,
+  done INTEGER NOT NULL DEFAULT 0,
+  done_date TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  deleted_at TEXT
+);
+
 -- 환자 외상 ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS credits (
   id INTEGER PRIMARY KEY,

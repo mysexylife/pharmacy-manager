@@ -1,9 +1,10 @@
 import {
   h, api, won, signed, errorBox, guard, submit, confirmDelete, formatDate, parseDate, todayKST, toast, pageHead, rowMenu, dateInput,
+  foldPair, dateField, field, moneyField, badge,
 } from './lib.js';
 import { addMonths } from './dates.js';
 import { sheet, cell } from './sheet.js';
-import { created, deleted } from './undo.js';
+import { created, deleted, patched } from './undo.js';
 
 const HOSPITAL_NAME = '한사랑의원'; // 병원은 한 곳뿐이라 목록 없이 바로 보여 준다
 
@@ -45,10 +46,42 @@ export function hospitalsView() {
     detail.replaceChildren(
       h('div', { class: 'stickybar hospbar' },
         h('strong', {}, d.hospital.name),
-        h('span', {}, '현재 잔고 ', h('b', { class: d.balance < 0 ? 'neg' : '' }, `${won(d.balance)}원`))),
+        h('span', {}, d.advances.some((a) => !a.done) && badge(`처방전 확인 ${d.advances.filter((a) => !a.done).length}건`, 'warn'),
+          '현재 잔고 ', h('b', { class: d.balance < 0 ? 'neg' : '' }, `${won(d.balance)}원`))),
+      advancePanel(d),
       ledgerCard(d, products),
       pricePanel(products));
     if (refocus) { refs.item?.focus(); refocus = false; }
+  }
+
+  // ---- 미리 가져간 조제약: 처방전이 들어오면 확인 체크 -------------------------------
+  let showAllDone = false;
+  function advancePanel(d) {
+    const open = d.advances.filter((a) => !a.done);
+    const done = d.advances.filter((a) => a.done);
+    const shown = showAllDone ? done : done.slice(0, 2);
+    const add = foldPair('미리 가져간 조제약', ({ close }) => h('form', { onsubmit: submit(err, async (fd, form) => {
+      await created('hospital_advances', '미리 가져간 조제약', api('POST', `/api/hospitals/${d.hospital.id}/advances`, Object.fromEntries(fd)));
+      form.reset();
+      close();
+      await load();
+    }) }, h('div', { class: 'row' },
+      dateField('가져간 날짜'), field('품목', 'item', { required: true, cls: 'wide' }), moneyField('수량', 'qty', { value: '1' }),
+      h('button', { class: 'btn', type: 'submit' }, '추가'))));
+    const item = (a) => h('li', { class: a.done ? 'done' : '' },
+      h('label', { class: 'check' },
+        h('input', { type: 'checkbox', checked: !!a.done, 'aria-label': `${a.item} 처방전 확인`,
+          onchange: act((e) => patched(`/api/advances/${a.id}`, { done: !e.target.checked }, { done: e.target.checked }, `${a.item} 처방전 확인 표시`)) }),
+        h('span', { class: 'ptext' }, `${formatDate(a.date)} ${a.item}`, a.qty ? h('small', {}, ` · ${a.qty}개`) : null,
+          a.done && a.done_date ? h('small', {}, ` · 확인 ${formatDate(a.done_date)}`) : null)),
+      rowMenu(act(async () => { if (confirmDelete(`미리 가져간 ${a.item}`)) await deleted('hospital_advances', a.id, `미리 가져간 ${a.item}`); })));
+    return h('div', { class: 'card process hospadv' },
+      h('section', { class: 'pcol' },
+        h('div', { class: 'phead' }, h('strong', {}, '미리 가져간 조제약'), h('small', { class: 'hint' }, '체크 = 처방전 접수 확인'), h('span', { class: 'grow' }), add.trigger),
+        add.body,
+        (open.length + shown.length) > 0 && h('ul', { class: 'plist items' }, [...open, ...shown].map(item)),
+        done.length > 2 && h('button', { type: 'button', class: 'linklike', onclick: () => { showAllDone = !showAllDone; load(); } },
+          showAllDone ? '지난 내역 접기' : `지난 ${done.length - 2}건 더 보기`)));
   }
 
   // ---- 내역표 ---------------------------------------------------------

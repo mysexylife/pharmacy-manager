@@ -296,6 +296,24 @@ test('처방조제약: 자동 할인은 없고, 할인액을 비우면 원래 �
   assert.equal('rx_discount' in (await ok('GET', '/api/settings')), false); // 자동 할인 설정은 없다
 });
 
+test('병원: 미리 가져간 조제약을 기록하고, 처방전이 들어오면 확인 체크한다', async () => {
+  const h = (await ok('GET', '/api/hospitals'))[0]?.id ?? (await ok('POST', '/api/hospitals', { name: '한사랑의원' }, 201)).id;
+  const a = (await ok('POST', `/api/hospitals/${h}/advances`, { date: '26.11.18', item: '타이레놀', qty: 5 }, 201)).id;
+  let l = await ok('GET', `/api/hospitals/${h}/ledger`);
+  assert.deepEqual(l.advances.filter((x) => x.id === a).map((x) => [x.item, x.qty, x.done]), [['타이레놀', 5, 0]]);
+  await ok('PATCH', `/api/advances/${a}`, { done: true });
+  l = await ok('GET', `/api/hospitals/${h}/ledger`);
+  const row = l.advances.find((x) => x.id === a);
+  assert.equal(row.done, 1);
+  assert.ok(row.done_date);
+  await ok('PATCH', `/api/advances/${a}`, { done: false });
+  await ok('DELETE', `/api/advances/${a}`);
+  assert.equal((await ok('GET', `/api/hospitals/${h}/ledger`)).advances.some((x) => x.id === a), false);
+  await ok('POST', '/api/trash/restore', { table: 'hospital_advances', id: a }); // 휴지통에서 되살릴 수 있다
+  assert.equal((await ok('GET', `/api/hospitals/${h}/ledger`)).advances.some((x) => x.id === a), true);
+  assert.equal((await call('POST', `/api/hospitals/${h}/advances`, { date: '26.11.18', item: '' })).status, 400);
+});
+
 // ---------------------------------------------------------------- 환자 외상
 test('환자 외상: 한 줄이 한 건이고 오래된 순서, 연체(30일) 표시, 완불은 따로 관리', async () => {
   const today = todayKST();
