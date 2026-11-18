@@ -17,13 +17,16 @@ document.addEventListener('pointerdown', (e) => { if (reveal && !reveal.contains
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeReveal(); });
 window.addEventListener('scroll', closeReveal, { passive: true });
 
-// 열 너비: '120px'(고정) 또는 'minmax(최소px, 비율fr)'(남는 폭을 비율대로 나눔, 최소 폭 아래로는 줄지 않음)
+// 열 너비: '120px'(고정) / 'minmax(최소px, 비율fr)'(남는 폭을 비율대로 나눔, 최소 폭 아래로는 줄지 않음)
+//          / 'minmax(최소px, 최대px)'(최소~최대 사이에서 쓰고, 넓어져도 최대를 넘지 않음)
 function parseCols(cols) {
   return cols.map((w) => {
     const px = /^(\d+)px$/.exec(w);
     if (px) return { fixed: Number(px[1]) };
     const m = /^minmax\((\d+)px,\s*([\d.]+)fr\)$/.exec(w);
-    return m ? { min: Number(m[1]), weight: Number(m[2]) } : { min: 0, weight: 1 };
+    if (m) return { min: Number(m[1]), weight: Number(m[2]) };
+    const c = /^minmax\((\d+)px,\s*(\d+)px\)$/.exec(w);
+    return c ? { min: Number(c[1]), max: Number(c[2]), weight: 1 } : { min: 0, weight: 1 };
   });
 }
 
@@ -41,6 +44,12 @@ function widthsFor(specs, total) {
   let flex = specs.map((c, i) => (c.fixed == null ? i : -1)).filter((i) => i >= 0);
   for (let round = 0; round < specs.length && flex.length; round++) {
     const weightSum = flex.reduce((n, i) => n + specs[i].weight, 0);
+    const tooBig = flex.filter((i) => specs[i].max != null && (free * specs[i].weight) / weightSum > specs[i].max);
+    if (tooBig.length) {
+      for (const i of tooBig) { widths[i] = specs[i].max; free -= specs[i].max; }
+      flex = flex.filter((i) => !tooBig.includes(i));
+      continue;
+    }
     const tooSmall = flex.filter((i) => (free * specs[i].weight) / weightSum < specs[i].min);
     if (!tooSmall.length) {
       for (const i of flex) widths[i] = Math.floor((free * specs[i].weight) / weightSum);

@@ -52,7 +52,7 @@ export function creditsView() {
     }));
   }
 
-  const COLS = ['134px', 'minmax(76px, 1fr)', '88px', '108px', 'minmax(84px, 1.4fr)', '80px', '88px', '60px', 'minmax(76px, 0.8fr)', '38px'];
+  const COLS = ['128px', 'minmax(84px, 104px)', '76px', '104px', 'minmax(80px, 1fr)', 'minmax(64px, 76px)', '80px', '56px', 'minmax(72px, 84px)', '38px'];
 
   function table(items) {
     const paidTab = tab === 'paid';
@@ -98,7 +98,7 @@ export function creditsView() {
     const date = dateInput('date', lastDate);
     const text = (name, label, extra = {}) => h('input', { name, type: 'text', autocomplete: 'off', placeholder: label, 'aria-label': label, ...extra });
     const name = text('name', '환자명');
-    const rrn = text('rrn_front', '주민번호 앞', { inputmode: 'numeric', maxLength: 6 });
+    const rrn = text('rrn_front', '주민번호 앞', { inputmode: 'numeric', maxLength: 6, placeholder: '주민번호' });
     const phone = text('phone', '연락처', { inputmode: 'tel' });
     const content = text('content', '외상 내용');
     const amount = text('amount', '외상액', { inputmode: 'numeric' });
