@@ -127,7 +127,7 @@ export function vendorsView() {
       close();
       await refresh();
     }) }, h('div', { class: 'row' },
-      dateField('요청일'), field('품목명', 'item', { required: true, cls: 'wide' }), moneyField('수량', 'qty', { value: '1', required: true }),
+      field('품목명', 'item', { required: true, cls: 'wide' }), moneyField('수량', 'qty', { value: '1', required: true }),
       h('button', { class: 'btn', type: 'submit' }, '추가'))));
     const addLoan = foldPair('차용', ({ close }) => h('form', { onsubmit: submit(err, async (fd, form) => {
       await created('vendor_loans', '차용', api('POST', `/api/vendors/${v.id}/loans`, Object.fromEntries(fd)));

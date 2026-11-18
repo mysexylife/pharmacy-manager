@@ -169,6 +169,18 @@ test('반품: 품목명과 수량이 있어야 하고, 처리 완료하면 장�
   assert.equal(l.entries.find((x) => x.kind === 'return').qty, 4);
 });
 
+test('반품: 품목과 수량만 적으면 오늘이 등록일자, 요청 확인 날짜는 체크한 날로 자동 기록', async () => {
+  const v = (await ok('POST', '/api/vendors', { name: '등록일자제약' }, 201)).id;
+  const ret = (await ok('POST', `/api/vendors/${v}/returns`, { item: '약A', qty: 2 }, 201)).id;
+  let r = (await ok('GET', `/api/vendors/${v}/ledger`)).returns.find((x) => x.id === ret);
+  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  assert.equal(r.date, today);
+  assert.equal(r.requested, 0);
+  await ok('PATCH', `/api/returns/${ret}`, { requested: true });
+  r = (await ok('GET', `/api/vendors/${v}/ledger`)).returns.find((x) => x.id === ret);
+  assert.deepEqual([r.requested, r.requested_date], [1, today]);
+});
+
 test('반품 2단계: 요청 확인 → 금액을 적고 처리 완료(날짜가 장부 날짜)', async () => {
   const v = (await ok('POST', '/api/vendors', { name: '2단계반품제약' }, 201)).id;
   const ret = (await ok('POST', `/api/vendors/${v}/returns`, { date: '26.11.01', item: '약A', qty: 3 }, 201)).id;

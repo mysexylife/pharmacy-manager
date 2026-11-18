@@ -486,7 +486,7 @@ export function buildRoutes(db, ctx = {}) {
         const qty = money(body.qty, '수량');
         if (qty < 1) throw new HttpError(400, '수량은 1 이상이어야 합니다');
         const r = q('INSERT INTO vendor_returns (vendor_id, date, item, qty, amount) VALUES (?, ?, ?, ?, ?)').run(
-          v.id, date(body.date), str(body.item, '품목명', { required: true }), qty, money(body.amount, '반품액', { blank: 0 }),
+          v.id, body.date ? date(body.date) : todayKST(), str(body.item, '품목명', { required: true }), qty, money(body.amount, '반품액', { blank: 0 }), // 날짜를 안 보내면 오늘이 등록일자
         );
         audit(db, 'return.create', `${v.name} ${body.item}`);
         return { status: 201, body: { id: Number(r.lastInsertRowid) } };
