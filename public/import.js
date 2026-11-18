@@ -27,6 +27,8 @@ export function importCard() {
       h('p', { class: 'muted' }, '제약회사 입고·결제·반품·차용·메모, 병원 외상, 환자 외상 내역이 모두 지워지고 엑셀 내용으로 바뀝니다. 제약회사 이름과 회전 개월 수, 병원 단가표, 설정은 그대로입니다. 지우기 전에 서버에 백업이 자동으로 만들어지고, 가져오다 오류가 나면 아무것도 바뀌지 않습니다.'),
       h('div', { class: 'row' }, pw, confirmText), h('p', { class: 'muted small' }, '비밀번호와, 확인 칸에 초기화 라고 입력하세요.'));
     const commitBtn = h('button', { class: 'btn', type: 'button' }, '이대로 가져오기');
+    // 가져오지 않고 미리보기를 닫는다 (고른 파일도 비운다)
+    const cancelBtn = h('button', { class: 'btn ghost', type: 'button', onclick: () => { out.replaceChildren(); input.value = ''; files = []; } }, '취소');
     const modes = new Map(); // 제약회사 시트 → 'excel' | 'calc'
     const rows = s.vendors.map((v) => {
       const sel = h('select', { disabled: !v.mismatch, onchange: () => modes.set(v.sheet, sel.value) },
@@ -50,7 +52,7 @@ export function importCard() {
       h('label', { class: 'check resetcheck' }, resetBox, '기존 장부를 모두 지우고 처음부터 다시 가져오기 (전환할 때)'),
       resetFields,
       h('p', { class: 'muted' }, '차이가 있는 제약회사는 마지막 줄에 "조정" 한 줄을 넣어 엑셀의 마지막 잔고와 맞춥니다. 이미 장부가 들어 있는 제약회사는 건너뜁니다.'),
-      commitBtn);
+      h('div', { class: 'row' }, commitBtn, cancelBtn));
     resetBox.addEventListener('change', () => {
       resetFields.hidden = !resetBox.checked;
       commitBtn.textContent = resetBox.checked ? '모두 지우고 가져오기' : '이대로 가져오기';
