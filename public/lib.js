@@ -208,9 +208,12 @@ document.addEventListener('click', () => document.querySelectorAll('.menu').forE
 export function foldPair(label, build) {
   const body = h('div', { class: 'card foldcard', hidden: true });
   const trigger = h('button', { type: 'button', class: 'btn', 'aria-expanded': 'false', onclick: () => (body.hidden ? show() : hide()) }, `+ ${label}`);
-  const show = () => { body.hidden = false; trigger.setAttribute('aria-expanded', 'true'); body.querySelector('input:not([type=checkbox]),select')?.focus(); };
-  const hide = () => { body.hidden = true; trigger.setAttribute('aria-expanded', 'false'); };
+  const show = () => { body.hidden = false; trigger.setAttribute('aria-expanded', 'true'); trigger.textContent = '닫기'; body.querySelector('input:not([type=checkbox]),select')?.focus(); };
+  const hide = () => { body.hidden = true; trigger.setAttribute('aria-expanded', 'false'); trigger.textContent = `+ ${label}`; trigger.focus?.(); };
   body.append(build({ close: hide }));
+  // 열었다가 그냥 닫을 수 있게: "취소" 버튼(추가 버튼 옆), 위쪽 버튼 다시 누르기, Esc
+  body.querySelector('button[type=submit]')?.after(h('button', { type: 'button', class: 'btn ghost', onclick: () => { body.querySelector('form')?.reset(); hide(); } }, '취소'));
+  body.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); hide(); } });
   return { trigger, body };
 }
 
