@@ -548,3 +548,5 @@ tr[hidden] { display: none !important; }
 
 .hospgrid > .hospadv { grid-column: 1 / -1; }
 .hospbar .badge { margin-right: 14px; }
+/* 자동으로 채워진 외상액 칸 */
+.addbar input.auto { background: var(--brand-soft); color: var(--brand); font-weight: 600; cursor: default; }

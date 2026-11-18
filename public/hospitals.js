@@ -97,7 +97,7 @@ export function hospitalsView() {
         h('td', { 'data-label': '날짜' }, formatDate(e.date)),
         h('td', { 'data-label': '환자명·품목' }, e.item),
         h('td', { class: 'num', 'data-label': '수량' }, e.qty ?? ''),
-        h('td', { class: 'num', 'data-label': '원래 금액' }, e.original != null ? won(e.original) : ''),
+        h('td', { class: 'num', 'data-label': '판매금액' }, e.original != null ? won(e.original) : ''),
         h('td', { class: 'num', 'data-label': '할인액' }, e.discount != null ? won(e.discount) : ''),
         h('td', { class: 'num', 'data-label': '외상액' }, e.billed ? (e.kind === 'adjust' ? signed(e.billed) : won(e.billed)) : ''),
         h('td', { class: 'num', 'data-label': '결제액' }, e.paid ? won(e.paid) : ''),
@@ -109,7 +109,7 @@ export function hospitalsView() {
     const cells = buildAddRow(d, products);
     const card = sheet({
       cols: ['120px', 'minmax(120px, 1.8fr)', '52px', 'minmax(80px, 1fr)', 'minmax(70px, 0.9fr)', 'minmax(80px, 1fr)', 'minmax(80px, 1fr)', 'minmax(90px, 1.1fr)', '44px'],
-      heads: [['날짜'], ['환자명·품목', false, true], ['수량', true], ['원래 금액', true], ['할인액', true], ['외상액', true], ['결제액', true], ['잔고', true], ['']], filterKey: 'hospital',
+      heads: [['날짜'], ['환자명·품목', false, true], ['수량', true], ['판매금액', true], ['할인액', true], ['외상액', true], ['결제액', true], ['잔고', true], ['']], filterKey: 'hospital',
       rows, addCells: cells, focusEl: refs.item,
     });
     // 이전 내역은 위쪽에서 한 달씩 더 불러온다
@@ -123,7 +123,7 @@ export function hospitalsView() {
 
   // 입력 줄: 채운 칸으로 종류를 알아낸다.
   //   결제액           → 결제
-  //   원래 금액        → 처방조제약 (외상액 = 원래 금액 − 직접 입력한 할인액, 비우면 할인 없음)
+  //   판매금액        → 처방조제약 (외상액 = 판매금액 − 직접 입력한 할인액, 비우면 할인 없음)
   //   외상액           → 일반의약품 직접 입력 (음수면 조정)
   //   (품목 이름·수량은 기록만 하고 외상액은 직접 입력한다. 단가표는 확인용이다)
   function buildAddRow(d, products) {
@@ -131,35 +131,57 @@ export function hospitalsView() {
     const item = h('input', { name: 'item', type: 'text', autocomplete: 'off', placeholder: '환자명 · 품목', 'aria-label': '환자명·품목' });
     const field = (name, label, placeholder = label) => h('input', { name, type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder, 'aria-label': label });
     const qty = field('qty', '수량');
-    const original = field('original', '원래 금액');
+    const original = field('original', '판매금액');
     const discount = field('discount', '할인액');
     const billed = field('billed', '외상액');
     const paid = field('paid', '결제액');
     const preview = h('span', { class: 'dim' }, '');
     refs = { item };
 
+    // 판매금액을 쓰면 외상액(= 판매금액 − 할인액)은 자동으로 채워지고, 이때는 직접 고치지 않는다.
+    // 판매금액 없이 외상액만 쓰면(일반의약품·조정) 외상액을 직접 입력한다.
+    const autoBilled = () => billed.dataset.auto === '1';
+    const syncBilled = () => {
+      const o = moneyOf(original.value);
+      if (o) {
+        const disc = moneyOf(discount.value);
+        billed.value = String(Math.max(0, o - disc));
+        billed.dataset.auto = '1';
+        billed.readOnly = true;
+        billed.tabIndex = -1;
+        billed.classList.add('auto');
+      } else if (autoBilled()) {
+        billed.value = '';
+        delete billed.dataset.auto;
+        billed.readOnly = false;
+        billed.tabIndex = 0;
+        billed.classList.remove('auto');
+      }
+    };
+
     // 입력한 내용으로 종류와 외상액을 계산한다. 화면의 미리보기와 저장이 같은 계산을 쓴다.
     const plan = () => {
       const o = moneyOf(original.value);
-      const b = moneyOf(billed.value);
+      const b = autoBilled() ? 0 : moneyOf(billed.value);
       const p = moneyOf(paid.value);
       const q = moneyOf(qty.value) || 1;
       const filled = [o, b, p].filter(Boolean).length;
-      if (filled > 1) throw new Error('원래 금액, 외상액, 결제액 중 하나만 입력하세요');
+      if (filled > 1) throw new Error('판매금액, 외상액, 결제액 중 하나만 입력하세요');
       if (p) return { kind: 'payment', delta: -p, body: { paid: p } };
       if (o) {
-        const disc = moneyOf(discount.value); // 자동 할인은 없다. 비우면 할인 없이 원래 금액 그대로
-        return { kind: 'rx', delta: Math.max(0, o - disc), body: { original: o, discount: disc } };
+        const disc = moneyOf(discount.value); // 자동 할인은 없다. 비우면 할인 없이 판매금액 그대로
+        if (disc > o) throw new Error('할인액이 판매금액보다 클 수 없습니다');
+        return { kind: 'rx', delta: o - disc, body: { original: o, discount: disc } };
       }
       if (b) return { kind: b < 0 ? 'adjust' : 'otc', delta: b, body: { billed: b, qty: b < 0 ? undefined : q } };
-      throw new Error('원래 금액, 외상액, 결제액 중 하나를 입력하세요');
+      throw new Error('판매금액, 외상액, 결제액 중 하나를 입력하세요');
     };
     const update = () => {
+      syncBilled();
       try {
         const x = plan();
-        billed.placeholder = x.kind === 'rx' ? won(x.delta) : '외상액';
         preview.textContent = `→ ${won(d.balance + x.delta)}`;
-      } catch { billed.placeholder = '외상액'; preview.textContent = ''; }
+      } catch { preview.textContent = ''; }
     };
     const send = guard(err, async () => {
       try {
@@ -184,7 +206,7 @@ export function hospitalsView() {
       cell('날짜', date.node),
       cell('환자명·품목', item),
       cell('수량', qty),
-      cell('원래 금액', original),
+      cell('판매금액', original),
       cell('할인액', discount),
       cell('외상액', billed),
       cell('결제액', paid),
