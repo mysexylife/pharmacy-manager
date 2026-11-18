@@ -27,10 +27,17 @@ function parseCols(cols) {
   });
 }
 
+// 폭이 모자라도 표를 유지하기 위해, 비율 열의 최소 폭은 60%까지 줄어들 수 있다(그보다 좁으면 카드형으로 바꾼다)
+const SHRINK = 0.6;
+
 // 전체 폭을 고정 열 + 비율 열로 나눈 px 너비 목록
 function widthsFor(specs, total) {
+  const fixedSum = specs.reduce((n, c) => n + (c.fixed ?? 0), 0);
+  const minSum = specs.reduce((n, c) => n + (c.fixed == null ? c.min : 0), 0);
+  const k = minSum ? Math.min(1, Math.max(SHRINK, (total - fixedSum) / minSum)) : 1;
+  specs = specs.map((c) => (c.fixed == null ? { ...c, min: c.min * k } : c));
   const widths = specs.map((c) => c.fixed ?? c.min);
-  let free = total - specs.reduce((n, c) => n + (c.fixed ?? 0), 0);
+  let free = total - fixedSum;
   let flex = specs.map((c, i) => (c.fixed == null ? i : -1)).filter((i) => i >= 0);
   for (let round = 0; round < specs.length && flex.length; round++) {
     const weightSum = flex.reduce((n, i) => n + specs[i].weight, 0);
@@ -73,7 +80,7 @@ export function sheet({ cols, heads, rows, addCells, focusEl, className = '', fi
     document.body.append(reveal);
   });
   // 카드 폭이 열들이 들어갈 최소 폭보다 좁아지면 "카드형"(폰 모양)으로 바꾼다. 창 크기가 아니라 실제 표 폭을 기준으로 한다.
-  const minWidth = specs.reduce((n, c) => n + (c.fixed ?? c.min), 0) + 24;
+  const minWidth = specs.reduce((n, c) => n + (c.fixed ?? c.min * SHRINK), 0) + 24;
   let bar = null;
   const fit = () => {
     const stacked = card.clientWidth > 0 && card.clientWidth < minWidth;

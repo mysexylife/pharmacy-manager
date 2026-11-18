@@ -52,7 +52,7 @@ export function creditsView() {
     }));
   }
 
-  const COLS = ['140px', 'minmax(84px, 1fr)', '92px', '116px', 'minmax(100px, 1.4fr)', '92px', '104px', '76px', 'minmax(90px, 0.8fr)', '44px'];
+  const COLS = ['134px', 'minmax(76px, 1fr)', '88px', '108px', 'minmax(84px, 1.4fr)', '80px', '88px', '60px', 'minmax(76px, 0.8fr)', '38px'];
 
   function table(items) {
     const paidTab = tab === 'paid';

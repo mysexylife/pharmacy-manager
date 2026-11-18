@@ -330,15 +330,16 @@ table.plain td { padding: 12px 8px; }
   .stat, .stats .summary > div { padding: 12px 14px; }
   .stat b, .stats .summary b { font-size: 18px; }
   .card { padding: 16px; }
-  table, thead, tbody, tr, td { display: block; }
-  thead { display: none; }
-  tr { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; padding: 6px 4px; }
-  td { border: 0; padding: 4px 8px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  td::before { content: attr(data-label); color: var(--muted); font-size: 13px; flex: none; }
-  td:not([data-label])::before { content: none; }
-  td:empty { display: none; }
-  td.num { text-align: right; }
-  .hide-sm { display: none !important; }
+  /* 장부 표(.ledger)는 폰 모양으로 바꿀지를 표 폭으로 따로 정한다(.stack). 그 밖의 표만 여기서 카드로 바꾼다 */
+  table:not(.ledger), table:not(.ledger) thead, table:not(.ledger) tbody, table:not(.ledger) tr, table:not(.ledger) td { display: block; }
+  table:not(.ledger) thead { display: none; }
+  table:not(.ledger) tr { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; padding: 6px 4px; }
+  table:not(.ledger) td { border: 0; padding: 4px 8px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  table:not(.ledger) td::before { content: attr(data-label); color: var(--muted); font-size: 13px; flex: none; }
+  table:not(.ledger) td:not([data-label])::before { content: none; }
+  table:not(.ledger) td:empty { display: none; }
+  table:not(.ledger) td.num { text-align: right; }
+  .ledgercard.stack .hide-sm { display: none !important; }
   .card.process { grid-template-columns: 1fr; }
   .hospbar { margin-bottom: 0; }
   .listbox { padding: 10px; }
@@ -346,7 +347,6 @@ table.plain td { padding: 12px 8px; }
   /* 연체 줄은 카드 전체가 한 색으로, 입력칸은 잘리지 않게 */
   .ledger tr.overdue-row { background: var(--danger-bg); }
   .ledger tr.overdue-row td { background: transparent; }
-  .ledger.fixed .amt { width: 124px; }
 }
 
 /* 제약회사 목록은 1200px 이하에서 접어서 표에 폭을 준다 */
