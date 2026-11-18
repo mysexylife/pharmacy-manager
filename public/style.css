@@ -593,3 +593,5 @@ tr[hidden] { display: none !important; }
 .todo { color: var(--danger); }
 .retdone { white-space: nowrap; font-size: 14px; }
 .retdone strong { color: var(--ink); }
+
+.retstep .amt.need { border-color: var(--danger); background: var(--danger-bg); }

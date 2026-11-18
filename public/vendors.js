@@ -176,7 +176,14 @@ export function vendorsView() {
                 const typed = dateText.value.trim();
                 const iso = typed ? parseDate(typed) : null;
                 if (typed && !iso) throw new Error('날짜를 다시 확인하세요 (예: 26.10.31)');
-                const amountText = box.closest('.retstep').querySelector('.amt').value;
+                const amountInput = box.closest('.retstep').querySelector('.amt');
+                const amountText = amountInput.value;
+                if (!(moneyOf(amountText) > 0)) { // 정확한 금액이 없으면 처리 완료로 넘어가지 않는다
+                  amountInput.classList.add('need');
+                  amountInput.focus();
+                  throw new Error('반품 금액을 정확히 입력해야 처리 완료할 수 있어요');
+                }
+                amountInput.classList.remove('need');
                 if (moneyOf(amountText) !== (r.amount || 0)) await api('PATCH', url, { amount: amountText }); // 입력한 금액을 먼저 저장
                 const after = iso ? { done: true, done_date: iso } : { done: true };
                 await patched(url, { done: false }, after, `반품 ${r.item} 처리 완료`);
