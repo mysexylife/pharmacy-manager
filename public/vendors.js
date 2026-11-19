@@ -236,13 +236,14 @@ export function vendorsView() {
     }
     for (const e of entries) {
       const isIn = e.kind === 'purchase' || e.kind === 'adjust';
+      const ed = (field, raw) => (e.return_id ? {} : { 'data-edit': field, 'data-raw': String(raw ?? '') }); // 반품 줄은 반품 칸에서 고친다
       rows.push(h('tr', { 'data-id': e.id },
-        h('td', { 'data-label': '날짜' }, formatDate(e.date)),
-        h('td', { 'data-label': '품목' }, e.description || (e.kind === 'payment' ? '결제' : '')),
-        h('td', { class: 'num', 'data-label': '수량' }, e.qty ?? ''),
-        h('td', { class: 'num', 'data-label': '입고액' }, isIn && e.amount ? (e.kind === 'adjust' ? signed(e.amount) : won(e.amount)) : ''),
+        h('td', { 'data-label': '날짜', ...ed('date', formatDate(e.date)) }, formatDate(e.date)),
+        h('td', { 'data-label': '품목', ...ed('description', e.description) }, e.description || (e.kind === 'payment' ? '결제' : '')),
+        h('td', { class: 'num', 'data-label': '수량', ...ed('qty', e.qty) }, e.qty ?? ''),
+        h('td', { class: 'num', 'data-label': '입고액', ...(isIn ? ed('amount', e.amount) : {}) }, isIn && e.amount ? (e.kind === 'adjust' ? signed(e.amount) : won(e.amount)) : ''),
         h('td', { class: 'num', 'data-label': '반품액' }, e.kind === 'return' ? won(e.amount) : ''),
-        h('td', { class: 'num', 'data-label': '결제액' }, e.kind === 'payment' ? won(e.amount) : ''),
+        h('td', { class: 'num', 'data-label': '결제액', ...(e.kind === 'payment' ? ed('amount', e.amount) : {}) }, e.kind === 'payment' ? won(e.amount) : ''),
         h('td', { class: `num ${e.balance < 0 ? 'neg' : ''}`, 'data-label': '잔고' }, won(e.balance)),
         h('td', {}, !e.return_id && rowMenu(act(async () => {
           if (confirmDelete(`${formatDate(e.date)} ${e.description || '결제'}`)) await deleted('vendor_entries', e.id, `${formatDate(e.date)} ${e.description || '결제'}`);
@@ -253,6 +254,11 @@ export function vendorsView() {
       cols: ['120px', 'minmax(130px, 1.6fr)', '52px', 'minmax(92px, 1fr)', 'minmax(80px, 0.8fr)', 'minmax(92px, 1fr)', 'minmax(100px, 1.1fr)', '44px'],
       heads: [['날짜'], ['품목', false, true], ['수량', true], ['입고액', true], ['반품액', true], ['결제액', true], ['잔고', true], ['']], filterKey: `vendor-${v.id}`,
       rows, addCells: cells, focusEl: refs.description,
+      onEdit: async (id, field, value, before) => {
+        await patched(`/api/entries/${id}`, { [field]: before }, { [field]: value }, `장부 ${field === 'date' ? '날짜' : field === 'description' ? '품목' : field === 'qty' ? '수량' : '금액'} 고치기`);
+        toast('고쳤어요');
+        await refresh();
+      },
     });
   }
 

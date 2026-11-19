@@ -1,4 +1,4 @@
-import { h } from './lib.js';
+import { h, toast } from './lib.js';
 import { attachFilters } from './filter.js';
 
 // 엑셀 같은 내역표: 열 너비가 고정된 표 + 바로 아래에 붙는 입력 줄.
@@ -24,6 +24,8 @@ function openReveal(anchor, text) {
 document.addEventListener('pointerdown', (e) => { if (reveal && !reveal.contains(e.target) && !e.target.closest?.('.ledger td')) closeReveal(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeReveal(); });
 window.addEventListener('scroll', closeReveal, { passive: true });
+
+const toastError = (ex) => toast(ex?.message ?? String(ex), 'error');
 
 // 방금 추가한 줄(data-id)로 화면을 옮기고 잠깐 강조한다
 export function revealRow(id) {
@@ -88,7 +90,7 @@ export function idealWidth(cols) {
   return specs.reduce((n, c) => n + (c.fixed ?? c.max), 0) + 18;
 }
 
-export function sheet({ cols, heads, rows, addCells, focusEl, className = '', filterKey = null }) {
+export function sheet({ cols, heads, rows, addCells, focusEl, className = '', filterKey = null, onEdit = null }) {
   const specs = parseCols(cols);
   const colEls = cols.map(() => h('col'));
   const table = h('table', { class: 'ledger fixed' },
@@ -122,6 +124,37 @@ export function sheet({ cols, heads, rows, addCells, focusEl, className = '', fi
     el.addEventListener('input', sync);
     el.addEventListener('blur', () => { el.removeEventListener('input', sync); closeReveal(); }, { once: true });
   });
+  // 칸을 두 번 누르면 그 자리에서 고친다 (Enter = 저장, Esc = 취소, 다른 곳을 누르면 저장).
+  // 고칠 수 있는 칸은 data-edit(칸 이름)과 data-raw(고칠 때 보여 줄 글자)를 가진다.
+  if (onEdit) {
+    card.classList.add('editable');
+    table.tBodies[0].addEventListener('dblclick', (e) => {
+      const td = e.target.closest('td[data-edit]');
+      const tr = td?.closest('tr');
+      if (!td || !tr?.dataset.id || td.querySelector('input.cellinput')) return;
+      closeReveal();
+      const before = td.dataset.raw ?? td.textContent.trim();
+      const original = [...td.childNodes];
+      const input = h('input', { class: 'cellinput', type: 'text', value: before, 'aria-label': `${td.dataset.edit} 고치기` });
+      td.replaceChildren(input);
+      input.focus();
+      input.select();
+      let finished = false;
+      const restore = () => td.replaceChildren(...original);
+      const finish = async (save) => {
+        if (finished) return;
+        finished = true;
+        const next = input.value.trim();
+        if (!save || next === before.trim()) { restore(); return; }
+        try { await onEdit(tr.dataset.id, td.dataset.edit, next, before); } catch (ex) { restore(); toastError(ex); }
+      };
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); finish(true); } else if (ev.key === 'Escape') { ev.stopPropagation(); finish(false); }
+      });
+      input.addEventListener('blur', () => finish(true));
+    });
+    card.prepend(h('div', { class: 'edithint' }, '칸을 두 번 누르면 고칠 수 있어요'));
+  }
   // 카드 폭이 열들이 들어갈 최소 폭보다 좁아지면 "카드형"(폰 모양)으로 바꾼다. 창 크기가 아니라 실제 표 폭을 기준으로 한다.
   const minWidth = specs.reduce((n, c) => n + (c.fixed ?? c.min * SHRINK), 0) + 24;
   let bar = null;

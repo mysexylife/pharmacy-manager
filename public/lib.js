@@ -191,8 +191,9 @@ export function tabs(label, items, current, onPick) {
 }
 
 // 행 끝의 "…" 메뉴. 지금은 삭제 하나만 있다.
-export function rowMenu(onDelete) {
+export function rowMenu(onDelete, extras = []) {
   const menu = h('div', { class: 'menu', hidden: true, role: 'menu' },
+    ...extras.map(([label, fn]) => h('button', { type: 'button', role: 'menuitem', onclick: (e) => { menu.hidden = true; fn(e); } }, label)),
     h('button', { type: 'button', role: 'menuitem', class: 'danger', onclick: (e) => { menu.hidden = true; onDelete(e); } }, '삭제'));
   const trigger = h('button', { type: 'button', class: 'kebab', 'aria-label': '더 보기', 'aria-haspopup': 'menu', onclick: (e) => {
     e.stopPropagation();

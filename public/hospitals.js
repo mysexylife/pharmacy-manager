@@ -99,14 +99,15 @@ export function hospitalsView() {
         h('td', { class: 'num', 'data-label': '잔고' }, won(d.opening)), h('td')));
     }
     for (const e of d.entries.slice().reverse()) { // 서버는 최근 것부터 주므로 뒤집어 오래된 순서로
+      const ed = (on, field, raw) => (on ? { 'data-edit': field, 'data-raw': String(raw ?? '') } : {}); // 줄 종류에 맞는 칸만 고칠 수 있다
       rows.push(h('tr', { 'data-id': e.id },
-        h('td', { 'data-label': '날짜' }, formatDate(e.date)),
-        h('td', { 'data-label': '환자명·품목' }, e.item),
-        h('td', { class: 'num', 'data-label': '수량' }, e.qty ?? ''),
-        h('td', { class: 'num', 'data-label': '판매금액' }, e.original != null ? won(e.original) : ''),
-        h('td', { class: 'num', 'data-label': '할인액' }, e.discount != null ? won(e.discount) : ''),
-        h('td', { class: 'num', 'data-label': '외상액' }, e.billed ? (e.kind === 'adjust' ? signed(e.billed) : won(e.billed)) : ''),
-        h('td', { class: 'num', 'data-label': '결제액' }, e.paid ? won(e.paid) : ''),
+        h('td', { 'data-label': '날짜', ...ed(true, 'date', formatDate(e.date)) }, formatDate(e.date)),
+        h('td', { 'data-label': '환자명·품목', ...ed(true, 'item', e.item) }, e.item),
+        h('td', { class: 'num', 'data-label': '수량', ...ed(e.kind === 'otc', 'qty', e.qty) }, e.qty ?? ''),
+        h('td', { class: 'num', 'data-label': '판매금액', ...ed(e.kind === 'rx', 'original', e.original) }, e.original != null ? won(e.original) : ''),
+        h('td', { class: 'num', 'data-label': '할인액', ...ed(e.kind === 'rx', 'discount', e.discount ?? 0) }, e.discount != null ? won(e.discount) : ''),
+        h('td', { class: 'num', 'data-label': '외상액', ...ed(e.kind === 'otc' || e.kind === 'adjust', 'billed', e.billed) }, e.billed ? (e.kind === 'adjust' ? signed(e.billed) : won(e.billed)) : ''),
+        h('td', { class: 'num', 'data-label': '결제액', ...ed(e.kind === 'payment', 'paid', e.paid) }, e.paid ? won(e.paid) : ''),
         h('td', { class: `num ${e.balance < 0 ? 'neg' : ''}`, 'data-label': '잔고' }, won(e.balance)),
         h('td', {}, rowMenu(act(async () => {
           if (confirmDelete(`${formatDate(e.date)} ${e.item}`)) await deleted('hospital_entries', e.id, `${formatDate(e.date)} ${e.item}`);
@@ -117,6 +118,11 @@ export function hospitalsView() {
       cols: LEDGER_COLS,
       heads: [['날짜'], ['환자명·품목', false, true], ['수량', true], ['판매금액', true], ['할인액', true], ['외상액', true], ['결제액', true], ['잔고', true], ['']], filterKey: 'hospital',
       rows, addCells: cells, focusEl: refs.item, className: 'hospsheet',
+      onEdit: async (id, field, value, before) => {
+        await patched(`/api/hospital-entries/${id}`, { [field]: before }, { [field]: value }, '병원 장부 고치기');
+        toast('고쳤어요');
+        await load();
+      },
     });
     // 이전 내역은 위쪽에서 한 달씩 더 불러온다
     if (d.hasEarlier || back > 1) {

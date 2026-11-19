@@ -59,11 +59,11 @@ export function creditsView() {
   function table(items) {
     const paidTab = tab === 'paid';
     const rows = items.map((i) => h('tr', { 'data-id': i.id, class: `${i.paid ? 'paid' : ''} ${i.overdue ? 'overdue-row' : ''}` },
-      h('td', { 'data-label': '날짜' }, formatDate(i.date), i.overdue && badge(`${i.days}일`, 'danger')),
+      h('td', { 'data-label': '날짜', 'data-edit': 'date', 'data-raw': formatDate(i.date) }, formatDate(i.date), i.overdue && badge(`${i.days}일`, 'danger')),
       h('td', { 'data-label': '환자명' }, h('button', { type: 'button', class: 'namebtn', onclick: () => openHistory(i.name, i.rrn_front) }, i.name)),
-      h('td', { 'data-label': '주민번호 앞' }, i.rrn_front),
+      h('td', { 'data-label': '주민번호 앞', 'data-edit': 'rrn_front', 'data-raw': i.rrn_front }, i.rrn_front),
       h('td', { 'data-label': '연락처' }, telLink(i.phone)),
-      h('td', { 'data-label': '외상 내용' }, i.content),
+      h('td', { 'data-label': '외상 내용', 'data-edit': 'content', 'data-raw': i.content }, i.content),
       h('td', { class: 'num', 'data-label': '외상액' }, i.paid
         ? won(i.amount)
         : h('input', { class: 'amt', type: 'text', inputmode: 'numeric', 'aria-label': '외상액', value: String(i.amount),
@@ -81,11 +81,26 @@ export function creditsView() {
         onchange: act((e) => patched(`/api/credits/${i.id}`, { note: i.note }, { note: e.target.value }, `${i.name} 비고`)) })),
       h('td', {}, rowMenu(act(async () => {
         if (confirmDelete(`${i.name} ${won(i.amount)}원 외상`)) await deleted('credits', i.id, `${i.name} 외상`);
-      })))));
+      }), [
+        // 이름과 연락처는 칸을 눌러도 다른 동작(외상 목록 보기, 전화)이 있어서 메뉴에서 고친다
+        ['이름 고치기', act(async () => {
+          const next = window.prompt('환자 이름', i.name);
+          if (next != null && next.trim() && next.trim() !== i.name) await patched(`/api/credits/${i.id}`, { name: i.name }, { name: next.trim() }, `${i.name} 이름 고치기`);
+        })],
+        ['연락처 고치기', act(async () => {
+          const next = window.prompt('연락처 (숫자와 - 만)', i.phone ?? '');
+          if (next != null && next.trim() !== (i.phone ?? '')) await patched(`/api/credits/${i.id}`, { phone: i.phone ?? '' }, { phone: next.trim() }, `${i.name} 연락처 고치기`);
+        })],
+      ]))));
     const heads = [['날짜'], ['환자명'], ['주민번호 앞'], ['연락처'], ['외상 내용', false, true], ['외상액', true],
       [paidTab ? '완불 날짜' : '메모장 작성'], ['완불'], ['비고', false, true], ['']];
     const card = sheet({
       cols: COLS, heads, rows, addCells: paidTab ? null : buildAddRow(), focusEl: refs.name, className: 'creditsheet', filterKey: `credits-${tab}`,
+      onEdit: async (id, field, value, before) => {
+        await patched(`/api/credits/${id}`, { [field]: before }, { [field]: value }, '환자 외상 고치기');
+        toast('고쳤어요');
+        await load();
+      },
     });
     // 열 제목 아래에 체크 칸 설명을 한 번만 보여 준다 (직원이 헷갈리지 않도록)
     const ths = card.querySelectorAll('thead th');

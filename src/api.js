@@ -723,6 +723,42 @@ export function buildRoutes(db, ctx = {}) {
       },
     },
     {
+      // 입력한 병원 외상 줄 고치기: 줄 종류에 맞는 칸만 고칠 수 있다 (처방조제약은 판매금액·할인액을 고치면 외상액이 다시 계산된다)
+      method: 'PATCH', path: '/api/hospital-entries/:id', access: 'user',
+      handler: ({ params, body }) => tx(db, () => {
+        const e = must(q('SELECT * FROM hospital_entries WHERE id = ? AND deleted_at IS NULL').get(id(params.id)));
+        const n = { ...e };
+        if (body.date !== undefined) n.date = date(body.date);
+        if (body.item !== undefined) n.item = str(body.item, '환자명·품목', { max: 200 });
+        if (body.qty !== undefined) {
+          if (e.kind !== 'otc') throw new HttpError(400, '수량은 일반 외상 줄에서만 고칠 수 있습니다');
+          n.qty = money(body.qty, '수량', { optional: true });
+        }
+        if (body.original !== undefined || body.discount !== undefined) {
+          if (e.kind !== 'rx') throw new HttpError(400, '판매금액과 할인액은 처방조제약 줄에서만 고칠 수 있습니다');
+          const o = body.original !== undefined ? money(body.original, '판매금액') : e.original;
+          const d = body.discount !== undefined ? money(body.discount, '할인액', { blank: 0 }) : (e.discount ?? 0);
+          if (d > o) throw new HttpError(400, '할인액이 판매금액보다 클 수 없습니다');
+          n.original = o;
+          n.discount = d;
+          n.billed = o - d;
+        }
+        if (body.billed !== undefined) {
+          if (e.kind === 'rx') throw new HttpError(400, '처방조제약의 외상액은 판매금액에서 할인액을 뺀 값이라 직접 고칠 수 없습니다');
+          if (e.kind === 'payment') throw new HttpError(400, '결제 줄은 결제액을 고쳐 주세요');
+          n.billed = money(body.billed, '외상액', { signed: e.kind === 'adjust' });
+        }
+        if (body.paid !== undefined) {
+          if (e.kind !== 'payment') throw new HttpError(400, '결제액은 결제 줄에서만 고칠 수 있습니다');
+          n.paid = money(body.paid, '결제액');
+        }
+        q(`UPDATE hospital_entries SET date = ?, item = ?, qty = ?, original = ?, discount = ?, billed = ?, paid = ? WHERE id = ?`)
+          .run(n.date, n.item, n.qty, n.original, n.discount, n.billed, n.paid, e.id);
+        audit(db, 'hospital.entry.update', `${e.id} ${JSON.stringify(body)}`);
+        return { body: { ok: true } };
+      }),
+    },
+    {
       method: 'DELETE', path: '/api/hospital-entries/:id', access: 'user',
       handler: ({ params }) => {
         const rowId = id(params.id);
@@ -817,6 +853,13 @@ export function buildRoutes(db, ctx = {}) {
         }
         if (body.amount !== undefined) q('UPDATE credits SET amount = ? WHERE id = ?').run(money(body.amount, '외상액'), c.id);
         if (body.note !== undefined) q('UPDATE credits SET note = ? WHERE id = ?').run(str(body.note, '비고'), c.id);
+        if (body.date !== undefined) q('UPDATE credits SET date = ? WHERE id = ?').run(date(body.date), c.id);
+        if (body.name !== undefined) q('UPDATE credits SET name = ? WHERE id = ?').run(str(body.name, '환자명', { required: true, max: 60 }), c.id);
+        if (body.rrn_front !== undefined) {
+          const rrn = str(body.rrn_front, '주민번호 앞자리', { max: 6 });
+          if (rrn && !/^\d{6}$/.test(rrn)) throw new HttpError(400, '주민번호 앞자리는 숫자 6자리입니다');
+          q('UPDATE credits SET rrn_front = ? WHERE id = ?').run(rrn, c.id);
+        }
         if (body.content !== undefined) q('UPDATE credits SET content = ? WHERE id = ?').run(str(body.content, '외상 내용'), c.id);
         if (body.phone !== undefined) {
           const phone = str(body.phone, '연락처', { max: 20 });

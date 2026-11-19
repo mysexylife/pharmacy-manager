@@ -374,6 +374,36 @@ test('병원: 미리 가져간 조제약을 기록하고, 처방전이 들어오
   assert.equal((await call('POST', `/api/hospitals/${h}/advances`, { date: '26.11.18', item: '' })).status, 400);
 });
 
+test('병원 외상 줄 고치기: 종류에 맞는 칸만, 처방조제약은 외상액이 다시 계산된다', async () => {
+  const h = (await ok('GET', '/api/hospitals'))[0]?.id ?? (await ok('POST', '/api/hospitals', { name: '한사랑의원' }, 201)).id;
+  const rx = (await ok('POST', `/api/hospitals/${h}/entries`, { kind: 'rx', date: '26.11.01', item: '고침시험', original: 61600, discount: 5000 }, 201)).id;
+  const otc = (await ok('POST', `/api/hospitals/${h}/entries`, { kind: 'otc', date: '26.11.01', item: '파스', billed: 4000, qty: 1 }, 201)).id;
+  const pay = (await ok('POST', `/api/hospitals/${h}/entries`, { kind: 'payment', date: '26.11.02', item: '결제', paid: 10000 }, 201)).id;
+  const get = async (id) => (await ok('GET', `/api/hospitals/${h}/ledger`)).entries.find((e) => e.id === id);
+  await ok('PATCH', `/api/hospital-entries/${rx}`, { original: 70000 });
+  assert.deepEqual([(await get(rx)).original, (await get(rx)).discount, (await get(rx)).billed], [70000, 5000, 65000]);
+  await ok('PATCH', `/api/hospital-entries/${rx}`, { discount: 10000, item: '고친이름', date: '26.11.05' });
+  const r = await get(rx);
+  assert.deepEqual([r.discount, r.billed, r.item, r.date], [10000, 60000, '고친이름', '2026-11-05']);
+  assert.equal((await call('PATCH', `/api/hospital-entries/${rx}`, { discount: 99999999 })).status, 400); // 할인이 판매금액보다 큼
+  assert.equal((await call('PATCH', `/api/hospital-entries/${rx}`, { billed: 5 })).status, 400); // 처방조제약 외상액은 직접 고치지 않는다
+  await ok('PATCH', `/api/hospital-entries/${otc}`, { billed: 4500, qty: 3 });
+  assert.deepEqual([(await get(otc)).billed, (await get(otc)).qty], [4500, 3]);
+  assert.equal((await call('PATCH', `/api/hospital-entries/${otc}`, { paid: 1 })).status, 400);
+  await ok('PATCH', `/api/hospital-entries/${pay}`, { paid: 12000 });
+  assert.equal((await get(pay)).paid, 12000);
+});
+
+test('환자 외상: 날짜·이름·주민번호도 고칠 수 있다', async () => {
+  const c = (await ok('POST', '/api/credits', { date: '26.11.01', name: '고침환자', amount: 1000 }, 201)).id;
+  await ok('PATCH', `/api/credits/${c}`, { date: '26.10.20', name: '이름고침', rrn_front: '900101', content: '약' });
+  const item = (await ok('GET', '/api/credits?status=all')).items.find((x) => x.id === c);
+  assert.deepEqual([item.date, item.name, item.rrn_front, item.content], ['2026-10-20', '이름고침', '900101', '약']);
+  assert.equal((await call('PATCH', `/api/credits/${c}`, { rrn_front: '12' })).status, 400);
+  assert.equal((await call('PATCH', `/api/credits/${c}`, { name: '' })).status, 400);
+  await ok('DELETE', `/api/credits/${c}`); // 다른 시험의 건수에 영향이 없도록 지운다
+});
+
 // ---------------------------------------------------------------- 환자 외상
 test('환자 외상: 한 줄이 한 건이고 오래된 순서, 연체(30일) 표시, 완불은 따로 관리', async () => {
   const today = todayKST();
