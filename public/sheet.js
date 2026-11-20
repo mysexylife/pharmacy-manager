@@ -37,7 +37,7 @@ export function revealRow(id) {
   }, 60);
 }
 
-// ---- 칸 선택: 한 번 누르면 칸이 선택된다 (←→↑↓ 이동, Enter = 고치기, Esc = 선택 해제) ----
+// ---- 칸 선택: 한 번 누르면 칸이 선택된다 (←→↑↓·Tab 이동, Enter = 고치기, Esc = 선택 해제) ----
 const selected = new Map(); // 표 종류 -> { id: 줄 id, col: 칸 번호 }
 function selectCell(card, key, td) {
   card.querySelectorAll('tbody td.selected').forEach((x) => x.classList.remove('selected'));
@@ -57,6 +57,13 @@ document.addEventListener('keydown', (e) => {
     const row = rows[rows.indexOf(tr) + move[0]];
     const next = row?.cells[td.cellIndex + move[1]];
     if (!next) return;
+    e.preventDefault();
+    selectCell(card, card.dataset.selkey, next);
+    next.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  } else if (e.key === 'Tab') { // Tab = 다음 칸(줄 끝이면 다음 줄 처음), Shift+Tab = 이전 칸
+    const cells = rows.flatMap((r) => [...r.cells]);
+    const next = cells[cells.indexOf(td) + (e.shiftKey ? -1 : 1)];
+    if (!next) return; // 표의 처음·끝이면 원래 Tab 동작
     e.preventDefault();
     selectCell(card, card.dataset.selkey, next);
     next.scrollIntoView({ block: 'nearest', inline: 'nearest' });
