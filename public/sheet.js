@@ -37,34 +37,35 @@ export function revealRow(id) {
   }, 60);
 }
 
-// ---- 줄 선택: 한 번 누르면 줄이 선택된다 (↑↓ 이동, Enter = 고치기, Delete = 삭제, Esc = 선택 해제) ----
-const selected = new Map(); // 표 종류 -> 선택한 줄의 id
-function selectRow(card, key, tr) {
-  card.querySelectorAll('tbody tr.selected').forEach((x) => x.classList.remove('selected'));
-  tr.classList.add('selected');
-  selected.set(key, tr.dataset.id);
+// ---- 칸 선택: 한 번 누르면 칸이 선택된다 (←→↑↓ 이동, Enter = 고치기, Esc = 선택 해제) ----
+const selected = new Map(); // 표 종류 -> { id: 줄 id, col: 칸 번호 }
+function selectCell(card, key, td) {
+  card.querySelectorAll('tbody td.selected').forEach((x) => x.classList.remove('selected'));
+  td.classList.add('selected');
+  selected.set(key, { id: td.parentElement.dataset.id, col: td.cellIndex });
 }
 document.addEventListener('keydown', (e) => {
-  const tr = document.querySelector('.ledgercard tbody tr.selected');
-  if (!tr || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+  const td = document.querySelector('.ledgercard tbody td.selected');
+  if (!td || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
   const t = document.activeElement;
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
-  const card = tr.closest('.ledgercard');
+  const card = td.closest('.ledgercard');
+  const tr = td.parentElement;
   const rows = [...card.querySelectorAll('tbody tr[data-id]')].filter((x) => !x.hidden);
-  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-    const next = rows[rows.indexOf(tr) + (e.key === 'ArrowDown' ? 1 : -1)];
+  const move = { ArrowDown: [1, 0], ArrowUp: [-1, 0], ArrowRight: [0, 1], ArrowLeft: [0, -1] }[e.key];
+  if (move) {
+    const row = rows[rows.indexOf(tr) + move[0]];
+    const next = row?.cells[td.cellIndex + move[1]];
     if (!next) return;
     e.preventDefault();
-    selectRow(card, card.dataset.selkey, next);
-    next.scrollIntoView({ block: 'nearest' });
+    selectCell(card, card.dataset.selkey, next);
+    next.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   } else if (e.key === 'Enter') {
-    const td = tr.querySelector('td[data-edit]');
-    if (td) { e.preventDefault(); td.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); }
-  } else if (e.key === 'Delete') {
-    const del = tr.querySelector('.menu .danger');
-    if (del) { e.preventDefault(); del.click(); }
+    e.preventDefault();
+    if (td.dataset.edit) td.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    else td.querySelector('input[type=text]')?.focus();
   } else if (e.key === 'Escape') {
-    tr.classList.remove('selected');
+    td.classList.remove('selected');
     selected.delete(card.dataset.selkey);
   }
 });
@@ -143,8 +144,7 @@ export function sheet({ cols, heads, rows, addCells, focusEl, className = '', fi
   table.tBodies[0].addEventListener('click', (e) => {
     const td = e.target.closest('td');
     if (!td || e.target.closest('input, button, label, a, select')) return;
-    const row = td.closest('tr[data-id]');
-    if (row) selectRow(card, selKey, row);
+    if (td.closest('tr[data-id]')) selectCell(card, selKey, td);
     closeReveal();
     if (card.classList.contains('stack') || td.scrollWidth <= td.clientWidth + 1) return;
     openReveal(td, td.textContent.trim());
@@ -215,9 +215,9 @@ export function sheet({ cols, heads, rows, addCells, focusEl, className = '', fi
       focusEl?.focus({ preventScroll: true });
     } }, '+ 행 추가'));
   }
-  if (selected.get(selKey)) { // 다시 그려도 선택한 줄은 그대로 선택된 상태로
-    const prev = table.tBodies[0].querySelector(`tr[data-id="${selected.get(selKey)}"]`);
-    if (prev) prev.classList.add('selected');
+  if (selected.get(selKey)) { // 다시 그려도 선택한 칸은 그대로 선택된 상태로
+    const sel = selected.get(selKey);
+    table.tBodies[0].querySelector(`tr[data-id="${sel.id}"]`)?.cells[sel.col]?.classList.add('selected');
   }
   if (filterKey) attachFilters(card, filterKey, heads);
   requestAnimationFrame(() => {

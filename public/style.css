@@ -621,8 +621,7 @@ tr[hidden] { display: none !important; }
 .ledger.fixed td:has(input.cellinput) { overflow: visible; }
 
 /* 선택한 줄 */
-.ledger tbody tr.selected td { background: var(--brand-soft); }
-.ledger tbody tr.selected.overdue-row td { background: var(--brand-soft); }
+.ledger tbody td.selected { background: var(--brand-soft) !important; outline: 2px solid var(--brand); outline-offset: -2px; }
 .ed { cursor: text; border-bottom: 1px dotted transparent; }
 .ed:hover { border-bottom-color: var(--muted); }
 .plist input.cellinput { width: 150px; min-height: 28px; padding: 1px 6px; font-size: 14px; border: 1.5px solid var(--brand); border-radius: 6px; }
