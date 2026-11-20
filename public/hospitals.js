@@ -103,10 +103,10 @@ export function hospitalsView() {
       rows.push(h('tr', { 'data-id': e.id },
         h('td', { 'data-label': '날짜', ...ed(true, 'date', formatDate(e.date)) }, formatDate(e.date)),
         h('td', { 'data-label': '환자명·품목', ...ed(true, 'item', e.item) }, e.item),
-        h('td', { class: 'num', 'data-label': '수량', ...ed(e.kind === 'otc', 'qty', e.qty) }, e.qty ?? ''),
+        h('td', { class: 'num', 'data-label': '수량', ...ed(true, 'qty', e.qty) }, e.qty ?? ''),
         h('td', { class: 'num', 'data-label': '판매금액', ...ed(e.kind === 'rx', 'original', e.original) }, e.original != null ? won(e.original) : ''),
         h('td', { class: 'num', 'data-label': '할인액', ...ed(e.kind === 'rx', 'discount', e.discount ?? 0) }, e.discount != null ? won(e.discount) : ''),
-        h('td', { class: 'num', 'data-label': '외상액', ...ed(e.kind === 'otc' || e.kind === 'adjust', 'billed', e.billed) }, e.billed ? (e.kind === 'adjust' ? signed(e.billed) : won(e.billed)) : ''),
+        h('td', { class: 'num', 'data-label': '외상액', ...ed(e.kind !== 'payment', 'billed', e.billed) }, e.billed ? (e.kind === 'adjust' ? signed(e.billed) : won(e.billed)) : ''),
         h('td', { class: 'num', 'data-label': '결제액', ...ed(e.kind === 'payment', 'paid', e.paid) }, e.paid ? won(e.paid) : ''),
         h('td', { class: `num ${e.balance < 0 ? 'neg' : ''}`, 'data-label': '잔고' }, won(e.balance)),
         h('td', {}, rowMenu(act(async () => {

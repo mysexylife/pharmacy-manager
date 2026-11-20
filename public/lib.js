@@ -206,6 +206,38 @@ export function rowMenu(onDelete, extras = []) {
 document.addEventListener('click', () => document.querySelectorAll('.menu').forEach((m) => { m.hidden = true; }));
 
 // 페이지 제목 줄 오른쪽에 둘 버튼과, 눌렀을 때 아래에 펼쳐질 입력 카드를 짝으로 만든다.
+// 글자 칸을 그 자리에서 입력 칸으로 바꿔 고친다 (Enter = 저장, Esc = 취소, 다른 곳을 누르면 저장).
+// save(새 글자)가 실패하면 원래 글자로 되돌리고 안내를 띄운다.
+export function startInlineEdit(el, before, save, label = '고치기') {
+  if (el.querySelector('input.cellinput')) return;
+  const original = [...el.childNodes];
+  const input = h('input', { class: 'cellinput', type: 'text', value: before, 'aria-label': label });
+  el.replaceChildren(input);
+  input.focus();
+  input.select();
+  let finished = false;
+  const restore = () => el.replaceChildren(...original);
+  const finish = async (doSave) => {
+    if (finished) return;
+    finished = true;
+    const next = input.value.trim();
+    if (!doSave || next === String(before).trim()) { restore(); return; }
+    try { await save(next); } catch (ex) { restore(); toast(ex?.message ?? String(ex), 'error'); }
+  };
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); } else if (e.key === 'Escape') { e.stopPropagation(); finish(false); }
+  });
+  input.addEventListener('blur', () => finish(true));
+}
+
+// 글자 하나를 두 번 눌러 고칠 수 있게 만든다 (반품·차용·메모 목록 등)
+export function editable(el, raw, save, label) {
+  el.classList.add('ed');
+  el.title = '두 번 눌러 고치기';
+  el.addEventListener('dblclick', (e) => { e.stopPropagation(); startInlineEdit(el, raw, save, label); });
+  return el;
+}
+
 export function foldPair(label, build) {
   const body = h('div', { class: 'card foldcard', hidden: true });
   const trigger = h('button', { type: 'button', class: 'btn', 'aria-expanded': 'false', onclick: () => (body.hidden ? show() : hide()) }, `+ ${label}`);

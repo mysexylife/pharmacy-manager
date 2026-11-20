@@ -60,7 +60,7 @@ export function creditsView() {
     const paidTab = tab === 'paid';
     const rows = items.map((i) => h('tr', { 'data-id': i.id, class: `${i.paid ? 'paid' : ''} ${i.overdue ? 'overdue-row' : ''}` },
       h('td', { 'data-label': '날짜', 'data-edit': 'date', 'data-raw': formatDate(i.date) }, formatDate(i.date), i.overdue && badge(`${i.days}일`, 'danger')),
-      h('td', { 'data-label': '환자명' }, h('button', { type: 'button', class: 'namebtn', onclick: () => openHistory(i.name, i.rrn_front) }, i.name)),
+      h('td', { 'data-label': '환자명', 'data-edit': 'name', 'data-raw': i.name }, h('span', { class: 'namebtn' }, i.name)),
       h('td', { 'data-label': '주민번호 앞', 'data-edit': 'rrn_front', 'data-raw': i.rrn_front }, i.rrn_front),
       h('td', { 'data-label': '연락처' }, telLink(i.phone)),
       h('td', { 'data-label': '외상 내용', 'data-edit': 'content', 'data-raw': i.content }, i.content),
@@ -82,11 +82,8 @@ export function creditsView() {
       h('td', {}, rowMenu(act(async () => {
         if (confirmDelete(`${i.name} ${won(i.amount)}원 외상`)) await deleted('credits', i.id, `${i.name} 외상`);
       }), [
-        // 이름과 연락처는 칸을 눌러도 다른 동작(외상 목록 보기, 전화)이 있어서 메뉴에서 고친다
-        ['이름 고치기', act(async () => {
-          const next = window.prompt('환자 이름', i.name);
-          if (next != null && next.trim() && next.trim() !== i.name) await patched(`/api/credits/${i.id}`, { name: i.name }, { name: next.trim() }, `${i.name} 이름 고치기`);
-        })],
+        ['이 환자의 외상 목록 보기', () => openHistory(i.name, i.rrn_front)],
+        // 연락처는 칸을 누르면 전화가 걸리는 링크라서 메뉴에서 고친다
         ['연락처 고치기', act(async () => {
           const next = window.prompt('연락처 (숫자와 - 만)', i.phone ?? '');
           if (next != null && next.trim() !== (i.phone ?? '')) await patched(`/api/credits/${i.id}`, { phone: i.phone ?? '' }, { phone: next.trim() }, `${i.name} 연락처 고치기`);

@@ -1,6 +1,6 @@
 import {
   h, api, won, signed, errorBox, guard, submit, field, moneyField, dateField, foldPair, collapsible, tabs, badge,
-  confirmDelete, formatDate, parseDate, todayKST, toast, state, pageHead, searchBox, rowMenu, dateInput,
+  confirmDelete, formatDate, parseDate, todayKST, toast, state, pageHead, searchBox, rowMenu, dateInput, editable,
 } from './lib.js';
 import { addMonths } from './dates.js';
 import { sheet, cell, revealRow } from './sheet.js';
@@ -116,6 +116,13 @@ export function vendorsView() {
 
   // ---- 반품 · 차용 · 특이사항 메모: 내역표 위에 작게 ---------------------------------
   // 끝난 것은 최근 2건만 흐리게 보이고, 나머지는 눌러야 보인다.
+  // 목록의 글자를 두 번 눌러 고친다: kind = returns | loans | notes, field = 고칠 칸
+  const editText = (el, kind, id, field, raw, label) => editable(el, raw, async (next) => {
+    await patched(`/api/${kind}/${id}`, { [field]: raw }, { [field]: next }, label);
+    toast('고쳤어요');
+    await refresh();
+  }, label);
+
   // 끝난 것(처리 완료·반환·확인)은 기본으로 모두 숨기고, 버튼을 눌러야 보인다.
   const KEEP_DONE = { returns: 0, loans: 0, notes: 0 };
   const DONE_LABEL = { returns: '처리 완료', loans: '반환 완료', notes: '확인한 메모' };
@@ -197,26 +204,34 @@ export function vendorsView() {
         } });
       return h('li', { class: `retitem ${r.done ? 'done' : ''}` },
         h('div', { class: 'retmain' },
-          h('span', { class: 'ptext' }, `${formatDate(r.date)} ${r.item}`, r.qty ? h('small', {}, ` · ${r.qty}개`) : null),
+          h('span', { class: 'ptext' },
+            editText(h('span', {}, formatDate(r.date)), 'returns', r.id, 'date', formatDate(r.date), '반품 등록일자'), ' ',
+            editText(h('span', {}, r.item), 'returns', r.id, 'item', r.item, '반품 품목'),
+            h('small', {}, ' · ', editText(h('span', {}, String(r.qty ?? '')), 'returns', r.id, 'qty', r.qty ?? '', '반품 수량'), '개')),
           rowMenu(act(async () => { if (confirmDelete(`반품 ${r.item}`)) await deleted('vendor_returns', r.id, `반품 ${r.item}`); }))),
         h('div', { class: 'retctl' },
           h('label', { class: 'check' }, reqBox, '반품 요청', r.requested && r.requested_date ? h('small', {}, ` ${formatDate(r.requested_date)}`) : null),
           h('label', { class: 'check' }, doneBox, '처리 완료', r.done && r.done_date ? h('strong', { class: 'donedt' }, ` ${formatDate(r.done_date)}`) : null),
-          h('label', { class: 'amtlabel' }, '반품 금액', amountInput)));
+          r.done
+            ? h('span', { class: 'amtlabel' }, '반품 금액 ', editText(h('strong', { class: 'donedt' }, `${won(r.amount)}원`), 'returns', r.id, 'amount', String(r.amount), '반품 금액'))
+            : h('label', { class: 'amtlabel' }, '반품 금액', amountInput)));
     }, 'returns');
 
     const loans = compactList(d.loans, (l) => l.returned, (l) => h('li', { class: l.returned ? 'done' : '' },
-      h('label', { class: 'check' },
+      h('div', { class: 'check' },
         h('input', { type: 'checkbox', checked: !!l.returned, 'aria-label': `${l.item} 반환 완료`, onchange: act((e) => patched(`/api/loans/${l.id}`, { returned: !e.target.checked }, { returned: e.target.checked }, `차용 ${l.item} 반환 표시`)) }),
         h('span', { class: 'chklabel' }, '반환 체크'),
-        h('span', { class: 'ptext' }, `${formatDate(l.date)} ${l.item}`, l.returned && l.returned_date ? h('small', {}, ` · 반환 ${formatDate(l.returned_date)}`) : null)),
-      h('b', {}, `${l.qty}개`),
+        h('span', { class: 'ptext' },
+          editText(h('span', {}, formatDate(l.date)), 'loans', l.id, 'date', formatDate(l.date), '차용 날짜'), ' ',
+          editText(h('span', {}, l.item), 'loans', l.id, 'item', l.item, '차용 품목'),
+          l.returned && l.returned_date ? h('small', {}, ` · 반환 ${formatDate(l.returned_date)}`) : null)),
+      h('b', {}, editText(h('span', {}, String(l.qty)), 'loans', l.id, 'qty', String(l.qty), '차용 개수'), '개'),
       rowMenu(act(async () => { if (confirmDelete(`차용 ${l.item}`)) await deleted('vendor_loans', l.id, `차용 ${l.item}`); }))), 'loans');
 
     const notes = compactList(d.notes, (n) => n.done, (n) => h('li', { class: n.done ? 'done' : '' },
-      h('label', { class: 'check' },
+      h('div', { class: 'check' },
         h('input', { type: 'checkbox', checked: !!n.done, 'aria-label': `${n.body} 완료`, onchange: act((e) => patched(`/api/notes/${n.id}`, { done: !e.target.checked }, { done: e.target.checked }, '메모 완료 표시'))  }),
-        h('span', { class: 'ptext' }, `${formatDate(n.date)} ${n.body}`, n.done && n.done_date ? h('small', {}, ` · ${formatDate(n.done_date)}`) : null)),
+        h('span', { class: 'ptext' }, `${formatDate(n.date)} `, editText(h('span', {}, n.body), 'notes', n.id, 'body', n.body, '특이사항 메모'), n.done && n.done_date ? h('small', {}, ` · ${formatDate(n.done_date)}`) : null)),
       rowMenu(act(async () => { if (confirmDelete('메모')) await deleted('vendor_notes', n.id, '메모'); }))), 'notes');
 
     return h('div', { class: 'card process' },
@@ -236,13 +251,13 @@ export function vendorsView() {
     }
     for (const e of entries) {
       const isIn = e.kind === 'purchase' || e.kind === 'adjust';
-      const ed = (field, raw) => (e.return_id ? {} : { 'data-edit': field, 'data-raw': String(raw ?? '') }); // 반품 줄은 반품 칸에서 고친다
-      rows.push(h('tr', { 'data-id': e.id },
+      const ed = (field, raw) => ({ 'data-edit': field, 'data-raw': String(raw ?? '') });
+      rows.push(h('tr', { 'data-id': e.id, ...(e.return_id ? { 'data-ret': e.return_id } : {}) }, // 반품 줄을 고치면 위쪽 반품 기록도 같이 바뀐다
         h('td', { 'data-label': '날짜', ...ed('date', formatDate(e.date)) }, formatDate(e.date)),
         h('td', { 'data-label': '품목', ...ed('description', e.description) }, e.description || (e.kind === 'payment' ? '결제' : '')),
         h('td', { class: 'num', 'data-label': '수량', ...ed('qty', e.qty) }, e.qty ?? ''),
         h('td', { class: 'num', 'data-label': '입고액', ...(isIn ? ed('amount', e.amount) : {}) }, isIn && e.amount ? (e.kind === 'adjust' ? signed(e.amount) : won(e.amount)) : ''),
-        h('td', { class: 'num', 'data-label': '반품액' }, e.kind === 'return' ? won(e.amount) : ''),
+        h('td', { class: 'num', 'data-label': '반품액', ...(e.kind === 'return' ? ed('amount', e.amount) : {}) }, e.kind === 'return' ? won(e.amount) : ''),
         h('td', { class: 'num', 'data-label': '결제액', ...(e.kind === 'payment' ? ed('amount', e.amount) : {}) }, e.kind === 'payment' ? won(e.amount) : ''),
         h('td', { class: `num ${e.balance < 0 ? 'neg' : ''}`, 'data-label': '잔고' }, won(e.balance)),
         h('td', {}, !e.return_id && rowMenu(act(async () => {
@@ -254,8 +269,12 @@ export function vendorsView() {
       cols: ['120px', 'minmax(130px, 1.6fr)', '52px', 'minmax(92px, 1fr)', 'minmax(80px, 0.8fr)', 'minmax(92px, 1fr)', 'minmax(100px, 1.1fr)', '44px'],
       heads: [['날짜'], ['품목', false, true], ['수량', true], ['입고액', true], ['반품액', true], ['결제액', true], ['잔고', true], ['']], filterKey: `vendor-${v.id}`,
       rows, addCells: cells, focusEl: refs.description,
-      onEdit: async (id, field, value, before) => {
-        await patched(`/api/entries/${id}`, { [field]: before }, { [field]: value }, `장부 ${field === 'date' ? '날짜' : field === 'description' ? '품목' : field === 'qty' ? '수량' : '금액'} 고치기`);
+      onEdit: async (id, field, value, before, tr) => {
+        const label = `장부 ${field === 'date' ? '날짜' : field === 'description' ? '품목' : field === 'qty' ? '수량' : '금액'} 고치기`;
+        if (tr.dataset.ret) { // 반품 줄: 반품 기록을 고친다 (날짜 = 처리 완료 날짜)
+          const key = { date: 'done_date', description: 'item', qty: 'qty', amount: 'amount' }[field];
+          await patched(`/api/returns/${tr.dataset.ret}`, { [key]: before }, { [key]: value }, label);
+        } else await patched(`/api/entries/${id}`, { [field]: before }, { [field]: value }, label);
         toast('고쳤어요');
         await refresh();
       },

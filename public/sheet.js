@@ -1,4 +1,4 @@
-import { h, toast } from './lib.js';
+import { h, toast, startInlineEdit } from './lib.js';
 import { attachFilters } from './filter.js';
 
 // 엑셀 같은 내역표: 열 너비가 고정된 표 + 바로 아래에 붙는 입력 줄.
@@ -25,8 +25,6 @@ document.addEventListener('pointerdown', (e) => { if (reveal && !reveal.contains
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeReveal(); });
 window.addEventListener('scroll', closeReveal, { passive: true });
 
-const toastError = (ex) => toast(ex?.message ?? String(ex), 'error');
-
 // 방금 추가한 줄(data-id)로 화면을 옮기고 잠깐 강조한다
 export function revealRow(id) {
   if (id == null) return;
@@ -38,6 +36,38 @@ export function revealRow(id) {
     setTimeout(() => tr.classList.remove('justadded'), 2200);
   }, 60);
 }
+
+// ---- 줄 선택: 한 번 누르면 줄이 선택된다 (↑↓ 이동, Enter = 고치기, Delete = 삭제, Esc = 선택 해제) ----
+const selected = new Map(); // 표 종류 -> 선택한 줄의 id
+function selectRow(card, key, tr) {
+  card.querySelectorAll('tbody tr.selected').forEach((x) => x.classList.remove('selected'));
+  tr.classList.add('selected');
+  selected.set(key, tr.dataset.id);
+}
+document.addEventListener('keydown', (e) => {
+  const tr = document.querySelector('.ledgercard tbody tr.selected');
+  if (!tr || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+  const t = document.activeElement;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+  const card = tr.closest('.ledgercard');
+  const rows = [...card.querySelectorAll('tbody tr[data-id]')].filter((x) => !x.hidden);
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    const next = rows[rows.indexOf(tr) + (e.key === 'ArrowDown' ? 1 : -1)];
+    if (!next) return;
+    e.preventDefault();
+    selectRow(card, card.dataset.selkey, next);
+    next.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') {
+    const td = tr.querySelector('td[data-edit]');
+    if (td) { e.preventDefault(); td.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); }
+  } else if (e.key === 'Delete') {
+    const del = tr.querySelector('.menu .danger');
+    if (del) { e.preventDefault(); del.click(); }
+  } else if (e.key === 'Escape') {
+    tr.classList.remove('selected');
+    selected.delete(card.dataset.selkey);
+  }
+});
 
 // 열 너비: '120px'(고정) / 'minmax(최소px, 비율fr)'(남는 폭을 비율대로 나눔, 최소 폭 아래로는 줄지 않음)
 //          / 'minmax(최소px, 최대px)'(최소~최대 사이에서 쓰고, 넓어져도 최대를 넘지 않음)
@@ -91,6 +121,7 @@ export function idealWidth(cols) {
 }
 
 export function sheet({ cols, heads, rows, addCells, focusEl, className = '', filterKey = null, onEdit = null }) {
+  const selKey = filterKey ?? className;
   const specs = parseCols(cols);
   const colEls = cols.map(() => h('col'));
   const table = h('table', { class: 'ledger fixed' },
@@ -98,6 +129,7 @@ export function sheet({ cols, heads, rows, addCells, focusEl, className = '', fi
     h('thead', {}, h('tr', {}, heads.map(([text, num, left]) => h('th', { class: `${num ? 'num' : ''} ${left ? 'ltext' : ''} ${text === '잔고' ? 'balhead' : ''}` }, text)))),
     h('tbody', {}, rows));
   const card = h('div', { class: `card ledgercard ${className}` }, table);
+  card.dataset.selkey = selKey;
   const ideal = idealWidth(cols);
   if (ideal) card.style.maxWidth = `${ideal}px`; // 모든 열에 최대 폭이 있으면 표를 그 폭에서 멈추고 더 넓히지 않는다
   // 글자 열(내용·품목 등)은 왼쪽, 나머지는 가운데 정렬. 길어서 잘린 글자는 마우스를 올리면 전체가 보인다.
@@ -111,6 +143,8 @@ export function sheet({ cols, heads, rows, addCells, focusEl, className = '', fi
   table.tBodies[0].addEventListener('click', (e) => {
     const td = e.target.closest('td');
     if (!td || e.target.closest('input, button, label, a, select')) return;
+    const row = td.closest('tr[data-id]');
+    if (row) selectRow(card, selKey, row);
     closeReveal();
     if (card.classList.contains('stack') || td.scrollWidth <= td.clientWidth + 1) return;
     openReveal(td, td.textContent.trim());
@@ -131,27 +165,10 @@ export function sheet({ cols, heads, rows, addCells, focusEl, className = '', fi
     table.tBodies[0].addEventListener('dblclick', (e) => {
       const td = e.target.closest('td[data-edit]');
       const tr = td?.closest('tr');
-      if (!td || !tr?.dataset.id || td.querySelector('input.cellinput')) return;
+      if (!td || !tr?.dataset.id) return;
       closeReveal();
       const before = td.dataset.raw ?? td.textContent.trim();
-      const original = [...td.childNodes];
-      const input = h('input', { class: 'cellinput', type: 'text', value: before, 'aria-label': `${td.dataset.edit} 고치기` });
-      td.replaceChildren(input);
-      input.focus();
-      input.select();
-      let finished = false;
-      const restore = () => td.replaceChildren(...original);
-      const finish = async (save) => {
-        if (finished) return;
-        finished = true;
-        const next = input.value.trim();
-        if (!save || next === before.trim()) { restore(); return; }
-        try { await onEdit(tr.dataset.id, td.dataset.edit, next, before); } catch (ex) { restore(); toastError(ex); }
-      };
-      input.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter') { ev.preventDefault(); finish(true); } else if (ev.key === 'Escape') { ev.stopPropagation(); finish(false); }
-      });
-      input.addEventListener('blur', () => finish(true));
+      startInlineEdit(td, before, (next) => onEdit(tr.dataset.id, td.dataset.edit, next, before, tr), `${td.dataset.edit} 고치기`);
     });
     card.prepend(h('div', { class: 'edithint' }, '칸을 두 번 누르면 고칠 수 있어요'));
   }
@@ -197,6 +214,10 @@ export function sheet({ cols, heads, rows, addCells, focusEl, className = '', fi
       bar.scrollIntoView({ block: 'center', behavior: 'smooth' });
       focusEl?.focus({ preventScroll: true });
     } }, '+ 행 추가'));
+  }
+  if (selected.get(selKey)) { // 다시 그려도 선택한 줄은 그대로 선택된 상태로
+    const prev = table.tBodies[0].querySelector(`tr[data-id="${selected.get(selKey)}"]`);
+    if (prev) prev.classList.add('selected');
   }
   if (filterKey) attachFilters(card, filterKey, heads);
   requestAnimationFrame(() => {

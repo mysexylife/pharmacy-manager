@@ -205,13 +205,17 @@ test('반품 2단계: 요청 확인 → 금액을 적고 처리 완료(날짜가
   assert.deepEqual([row.requested, row.requested_date, row.done, row.done_date], [0, null, 1, '2026-11-06']);
 });
 
-test('반품: 금액이 없으면 처리 완료를 체크할 수 없고, 완료된 반품은 고칠 수 없다', async () => {
+test('반품: 금액이 없으면 처리 완료를 체크할 수 없고, 완료된 반품을 고치면 장부 줄도 바뀐다', async () => {
   const v = (await ok('POST', '/api/vendors', { name: '반품규칙제약' }, 201)).id;
   const ret = (await ok('POST', `/api/vendors/${v}/returns`, { date: '26.10.01', item: '약', qty: 1 }, 201)).id;
   assert.equal((await call('PATCH', `/api/returns/${ret}`, { done: true })).status, 400);
   await ok('PATCH', `/api/returns/${ret}`, { amount: 12000 });
   await ok('PATCH', `/api/returns/${ret}`, { done: true });
-  assert.equal((await call('PATCH', `/api/returns/${ret}`, { amount: 99 })).status, 400);
+  // 처리 완료된 반품도 고칠 수 있고, 장부의 반품 줄이 함께 바뀐다
+  await ok('PATCH', `/api/returns/${ret}`, { amount: 99, item: '고친약', qty: 7 });
+  const row = (await ok('GET', `/api/vendors/${v}/ledger`)).entries.find((e) => e.return_id === ret);
+  assert.deepEqual([row.amount, row.description, row.qty], [99, '고친약', 7]);
+  assert.equal((await call('PATCH', `/api/returns/${ret}`, { amount: 0 })).status, 400); // 완료된 반품은 금액이 있어야 한다
   const led = await ok('GET', `/api/vendors/${v}/ledger`);
   const entry = led.entries.find((e) => e.kind === 'return');
   assert.equal((await call('DELETE', `/api/entries/${entry.id}`)).status, 400); // 반품 칸에서만 처리
@@ -386,7 +390,9 @@ test('병원 외상 줄 고치기: 종류에 맞는 칸만, 처방조제약은 �
   const r = await get(rx);
   assert.deepEqual([r.discount, r.billed, r.item, r.date], [10000, 60000, '고친이름', '2026-11-05']);
   assert.equal((await call('PATCH', `/api/hospital-entries/${rx}`, { discount: 99999999 })).status, 400); // 할인이 판매금액보다 큼
-  assert.equal((await call('PATCH', `/api/hospital-entries/${rx}`, { billed: 5 })).status, 400); // 처방조제약 외상액은 직접 고치지 않는다
+  await ok('PATCH', `/api/hospital-entries/${rx}`, { billed: 55000 }); // 처방조제약의 외상액을 고치면 할인액이 바뀐다
+  assert.deepEqual([(await get(rx)).discount, (await get(rx)).billed], [15000, 55000]);
+  assert.equal((await call('PATCH', `/api/hospital-entries/${rx}`, { billed: 999999 })).status, 400);
   await ok('PATCH', `/api/hospital-entries/${otc}`, { billed: 4500, qty: 3 });
   assert.deepEqual([(await get(otc)).billed, (await get(otc)).qty], [4500, 3]);
   assert.equal((await call('PATCH', `/api/hospital-entries/${otc}`, { paid: 1 })).status, 400);

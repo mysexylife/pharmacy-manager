@@ -496,15 +496,22 @@ export function buildRoutes(db, ctx = {}) {
       method: 'PATCH', path: '/api/returns/:id', access: 'user',
       handler: ({ params, body }) => tx(db, () => {
         const r = must(q('SELECT * FROM vendor_returns WHERE id = ? AND deleted_at IS NULL').get(id(params.id)));
-        const editing = ['date', 'item', 'amount', 'qty'].some((k) => body[k] !== undefined);
+        const editing = ['date', 'item', 'amount', 'qty'].some((k) => body[k] !== undefined)
+          || (r.done && body.done === undefined && body.done_date !== undefined);
         if (editing) {
-          if (r.done) throw new HttpError(400, '처리 완료를 풀고 고쳐 주세요');
-          q('UPDATE vendor_returns SET date = ?, item = ?, amount = ?, qty = ? WHERE id = ?').run(
-            body.date !== undefined ? date(body.date) : r.date,
-            body.item !== undefined ? str(body.item, '품목명', { required: true }) : r.item,
-            body.amount !== undefined ? money(body.amount, '반품액') : r.amount,
-            body.qty !== undefined ? money(body.qty, '수량') : r.qty, r.id,
-          );
+          const next = {
+            date: body.date !== undefined ? date(body.date) : r.date,
+            item: body.item !== undefined ? str(body.item, '품목명', { required: true }) : r.item,
+            amount: body.amount !== undefined ? money(body.amount, '반품액') : r.amount,
+            qty: body.qty !== undefined ? money(body.qty, '수량') : r.qty,
+          };
+          q('UPDATE vendor_returns SET date = ?, item = ?, amount = ?, qty = ? WHERE id = ?').run(next.date, next.item, next.amount, next.qty, r.id);
+          if (r.done) { // 처리 완료된 반품을 고치면 장부의 반품 줄도 같이 바뀐다 (장부 날짜 = 처리 완료 날짜)
+            if (!(next.amount > 0)) throw new HttpError(400, '처리 완료된 반품은 반품 금액이 있어야 합니다');
+            const doneDate = body.done_date !== undefined ? date(body.done_date, '처리 완료 날짜') : r.done_date;
+            q('UPDATE vendor_returns SET done_date = ? WHERE id = ?').run(doneDate, r.id);
+            q('UPDATE vendor_entries SET date = ?, description = ?, amount = ?, qty = ? WHERE return_id = ? AND deleted_at IS NULL').run(doneDate, next.item, next.amount, next.qty, r.id);
+          }
         }
         // 1단계: 반품 요청 확인 (제약회사에 반품을 요청했고 확인받았을 때)
         if (body.requested !== undefined && !r.done) {
@@ -731,7 +738,6 @@ export function buildRoutes(db, ctx = {}) {
         if (body.date !== undefined) n.date = date(body.date);
         if (body.item !== undefined) n.item = str(body.item, '환자명·품목', { max: 200 });
         if (body.qty !== undefined) {
-          if (e.kind !== 'otc') throw new HttpError(400, '수량은 일반 외상 줄에서만 고칠 수 있습니다');
           n.qty = money(body.qty, '수량', { optional: true });
         }
         if (body.original !== undefined || body.discount !== undefined) {
@@ -744,9 +750,13 @@ export function buildRoutes(db, ctx = {}) {
           n.billed = o - d;
         }
         if (body.billed !== undefined) {
-          if (e.kind === 'rx') throw new HttpError(400, '처방조제약의 외상액은 판매금액에서 할인액을 뺀 값이라 직접 고칠 수 없습니다');
           if (e.kind === 'payment') throw new HttpError(400, '결제 줄은 결제액을 고쳐 주세요');
-          n.billed = money(body.billed, '외상액', { signed: e.kind === 'adjust' });
+          if (e.kind === 'rx') { // 처방조제약은 외상액 = 판매금액 − 할인액이라, 외상액을 고치면 할인액이 바뀐다
+            const b = money(body.billed, '외상액');
+            if (b > n.original) throw new HttpError(400, '외상액이 판매금액보다 클 수 없습니다');
+            n.billed = b;
+            n.discount = n.original - b;
+          } else n.billed = money(body.billed, '외상액', { signed: e.kind === 'adjust' });
         }
         if (body.paid !== undefined) {
           if (e.kind !== 'payment') throw new HttpError(400, '결제액은 결제 줄에서만 고칠 수 있습니다');
